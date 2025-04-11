@@ -44,7 +44,16 @@ function get_git_tag() {
     echo ${GIT_TAG}
 }
 
+function check_git_changes() {
+    # Scheduled pipeline runs at 00:15 pacific time
+    # However it appears that our containers have the TZ set to UTC, so we need to either change the TZ, or take the TZ
+    # into account when checking the date
+    YESTERDAY="$(date -d '-1 day' '+%Y-%m-%d')T00:15"
 
+    # git log will exit 0 when there are no changes
+    LOG_COUNT=$(git log --since "${YESTERDAY}" | wc -l)
+
+}
 
 
 function create_env() {
