@@ -194,6 +194,10 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                             self._periodic_cleanup(name=name, job_store=job_store, sleep_time_sec=sleep_time_sec)))
                     self._cleanup_tasks.append(attr_name)
 
+    @staticmethod
+    async def task_waiter(t: asyncio.Task):
+        return await t
+
     def get_step_adaptor(self) -> StepAdaptor:
 
         return StepAdaptor(self.front_end_config.step_adaptor)
@@ -275,9 +279,10 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                     if job:
                         return AIQEvaluateResponse(job_id=job.job_id, status=job.status)
 
-                job_id = job_store.create_job(request.config_file, request.job_id, request.expiry_seconds)
+                coro = run_evaluation(job_id, request.config_file, request.reps, session_manager)
+                (job_id, task) = job_store.create_job(coro, request.config_file, request.job_id, request.expiry_seconds)
                 await self.create_cleanup_task(app=app, name="async_evaluation", job_store=job_store)
-                background_tasks.add_task(run_evaluation, job_id, request.config_file, request.reps, session_manager)
+                background_tasks.add_task(self.task_waiter, task)
 
                 return AIQEvaluateResponse(job_id=job_id, status="submitted")
 
@@ -573,22 +578,19 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                         if job:
                             return AIQAsyncGenerateResponse(job_id=job.job_id, status=job.status)
 
-                    job_id = job_store.create_job(job_id=request.job_id, expiry_seconds=request.expiry_seconds)
-                    await self.create_cleanup_task(app=app, name="async_generation", job_store=job_store)
-
                     # The fastapi/starlette background tasks won't begin executing until after the response is sent
                     # to the client, so we need to wrap the task in a function, alowing us to start the task now,
                     # and allowing the background task function to await the results.
-                    task = asyncio.create_task(
-                        run_generation(job_id=job_id,
-                                       payload=request,
-                                       session_manager=session_manager,
-                                       result_type=final_result_type))
+                    coro = run_generation(job_id=job_id,
+                                          payload=request,
+                                          session_manager=session_manager,
+                                          result_type=final_result_type)
+                    (job_id, task) = job_store.create_job(coro,
+                                                          job_id=request.job_id,
+                                                          expiry_seconds=request.expiry_seconds)
+                    await self.create_cleanup_task(app=app, name="async_generation", job_store=job_store)
 
-                    async def wrapped_task(t: asyncio.Task):
-                        return await t
-
-                    background_tasks.add_task(wrapped_task, task)
+                    background_tasks.add_task(self.task_waiter, task)
 
                     now = time.time()
                     sync_timeout = now + request.sync_timeout
@@ -652,7 +654,7 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                     methods=[endpoint.method],
                     description="Stream raw intermediate steps without any step adaptor translations.\n"
                     "Use filter_steps query parameter to filter steps by type (comma-separated list) or\
-                        set to 'none' to suppress all intermediate steps.",
+                        set to 'none' to suppress all intermediate steps."                                                                          ,
                 )
 
             elif (endpoint.method == "POST"):
@@ -689,7 +691,7 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                     response_model=GenerateStreamResponseType,
                     description="Stream raw intermediate steps without any step adaptor translations.\n"
                     "Use filter_steps query parameter to filter steps by type (comma-separated list) or \
-                        set to 'none' to suppress all intermediate steps.",
+                        set to 'none' to suppress all intermediate steps."                                                                          ,
                     responses={500: response_500},
                 )
 

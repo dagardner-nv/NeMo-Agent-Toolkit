@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import logging
 import os
 import shutil
@@ -39,6 +40,7 @@ class JobStatus(str, Enum):
 # pydantic model for the job status
 class JobInfo(BaseModel):
     job_id: str
+    task: asyncio.Task | None
     status: JobStatus
     config_file: str | None
     error: str | None
@@ -62,9 +64,10 @@ class JobStore:
         self._jobs = {}
 
     def create_job(self,
+                   coro,
                    config_file: str | None = None,
                    job_id: str | None = None,
-                   expiry_seconds: int = DEFAULT_EXPIRY) -> str:
+                   expiry_seconds: int = DEFAULT_EXPIRY) -> tuple[str, asyncio.Task]:
         if job_id is None:
             job_id = str(uuid4())
 
@@ -72,7 +75,9 @@ class JobStore:
         if expiry_seconds != clamped_expiry:
             logger.info("Clamped expiry_seconds from %d to %d for job %s", expiry_seconds, clamped_expiry, job_id)
 
+        task = asyncio.create_task(coro)
         job = JobInfo(job_id=job_id,
+                      task=task,
                       status=JobStatus.SUBMITTED,
                       config_file=config_file,
                       created_at=datetime.now(UTC),
@@ -82,7 +87,7 @@ class JobStore:
                       expiry_seconds=clamped_expiry)
         self._jobs[job_id] = job
         logger.info("Created new job %s with config %s", job_id, config_file)
-        return job_id
+        return (job_id, task)
 
     def update_status(self,
                       job_id: str,
@@ -155,7 +160,6 @@ class JobStore:
             expires_at = self.get_expires_at(job)
             if expires_at and now > expires_at:
                 expired_ids.append(job_id)
-                # TODO: JobInfo should contain a reference to the task so that it can be cancelled if needed
                 # cleanup output dir if present
                 if job.output_path:
                     logger.info("Cleaning up output directory for job %s at %s", job_id, job.output_path)
@@ -165,6 +169,11 @@ class JobStore:
                     # If it is a directory remove it
                     elif os.path.isdir(job.output_path):
                         shutil.rmtree(job.output_path)
+
+                # Cancel the task if it is still running
+                if job.task is not None and not job.task.done():
+                    logger.info("Cancelling task for expired job %s", job_id)
+                    job.task.cancel()
 
         for job_id in expired_ids:
             del self._jobs[job_id]
