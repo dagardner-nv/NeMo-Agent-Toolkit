@@ -17,6 +17,7 @@ import asyncio
 import logging
 import os
 import shutil
+from collections.abc import Coroutine
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -63,13 +64,18 @@ class JobStore:
     def __init__(self):
         self._jobs = {}
 
+    def ensure_job_id(self, job_id: str | None) -> str:
+        if job_id is None:
+            return str(uuid4())
+
+        return job_id
+
     def create_job(self,
-                   coro,
+                   coro: Coroutine,
                    config_file: str | None = None,
                    job_id: str | None = None,
                    expiry_seconds: int = DEFAULT_EXPIRY) -> tuple[str, asyncio.Task]:
-        if job_id is None:
-            job_id = str(uuid4())
+        job_id = self.ensure_job_id(job_id)
 
         clamped_expiry = max(self.MIN_EXPIRY, min(expiry_seconds, self.MAX_EXPIRY))
         if expiry_seconds != clamped_expiry:

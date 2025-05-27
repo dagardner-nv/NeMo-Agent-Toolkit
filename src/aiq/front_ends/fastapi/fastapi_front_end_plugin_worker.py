@@ -274,13 +274,15 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
             async with session_manager.session(request=http_request):
 
                 # if job_id is present and already exists return the job info
-                if request.job_id:
-                    job = job_store.get_job(request.job_id)
+                job_id = request.job_id
+                if job_id:
+                    job = job_store.get_job(job_id)
                     if job:
                         return AIQEvaluateResponse(job_id=job.job_id, status=job.status)
 
+                job_id = job_store.ensure_job_id(job_id)
                 coro = run_evaluation(job_id, request.config_file, request.reps, session_manager)
-                (job_id, task) = job_store.create_job(coro, request.config_file, request.job_id, request.expiry_seconds)
+                (job_id, task) = job_store.create_job(coro, request.config_file, job_id, request.expiry_seconds)
                 await self.create_cleanup_task(app=app, name="async_evaluation", job_store=job_store)
                 background_tasks.add_task(self.task_waiter, task)
 
@@ -573,21 +575,21 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                 async with session_manager.session(request=http_request):
 
                     # if job_id is present and already exists return the job info
-                    if request.job_id:
-                        job = job_store.get_job(request.job_id)
+                    job_id = request.job_id
+                    if job_id:
+                        job = job_store.get_job(job_id)
                         if job:
                             return AIQAsyncGenerateResponse(job_id=job.job_id, status=job.status)
 
                     # The fastapi/starlette background tasks won't begin executing until after the response is sent
                     # to the client, so we need to wrap the task in a function, alowing us to start the task now,
                     # and allowing the background task function to await the results.
+                    job_id = job_store.ensure_job_id(job_id)
                     coro = run_generation(job_id=job_id,
                                           payload=request,
                                           session_manager=session_manager,
                                           result_type=final_result_type)
-                    (job_id, task) = job_store.create_job(coro,
-                                                          job_id=request.job_id,
-                                                          expiry_seconds=request.expiry_seconds)
+                    (job_id, task) = job_store.create_job(coro, job_id=job_id, expiry_seconds=request.expiry_seconds)
                     await self.create_cleanup_task(app=app, name="async_generation", job_store=job_store)
 
                     background_tasks.add_task(self.task_waiter, task)
@@ -654,7 +656,7 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                     methods=[endpoint.method],
                     description="Stream raw intermediate steps without any step adaptor translations.\n"
                     "Use filter_steps query parameter to filter steps by type (comma-separated list) or\
-                        set to 'none' to suppress all intermediate steps."                                                                          ,
+                        set to 'none' to suppress all intermediate steps.",
                 )
 
             elif (endpoint.method == "POST"):
@@ -691,7 +693,7 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                     response_model=GenerateStreamResponseType,
                     description="Stream raw intermediate steps without any step adaptor translations.\n"
                     "Use filter_steps query parameter to filter steps by type (comma-separated list) or \
-                        set to 'none' to suppress all intermediate steps."                                                                          ,
+                        set to 'none' to suppress all intermediate steps.",
                     responses={500: response_500},
                 )
 
