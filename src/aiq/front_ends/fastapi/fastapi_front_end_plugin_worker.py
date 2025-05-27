@@ -171,12 +171,12 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
     @staticmethod
     async def _periodic_cleanup(name: str, job_store: JobStore, sleep_time_sec: int = 300):
         while True:
+            await asyncio.sleep(sleep_time_sec)
             try:
                 job_store.cleanup_expired_jobs()
                 logger.debug("Expired %s jobs cleaned up", name)
             except Exception as e:
                 logger.error("Error during %s job cleanup: %s", name, e)
-            await asyncio.sleep(sleep_time_sec)
 
     async def create_cleanup_task(self, app: FastAPI, name: str, job_store: JobStore, sleep_time_sec: int = 300):
         # Schedule periodic cleanup of expired jobs on first job creation
@@ -193,6 +193,13 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                         asyncio.create_task(
                             self._periodic_cleanup(name=name, job_store=job_store, sleep_time_sec=sleep_time_sec)))
                     self._cleanup_tasks.append(attr_name)
+
+    @staticmethod
+    async def task_waiter(t: asyncio.Task):
+        try:
+            return await t
+        except Exception as e:
+            logger.error("Error in background task: %s", e)
 
     def get_step_adaptor(self) -> StepAdaptor:
 
@@ -270,14 +277,17 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
             async with session_manager.session(request=http_request):
 
                 # if job_id is present and already exists return the job info
-                if request.job_id:
-                    job = job_store.get_job(request.job_id)
+                job_id = request.job_id
+                if job_id:
+                    job = job_store.get_job(job_id)
                     if job:
                         return AIQEvaluateResponse(job_id=job.job_id, status=job.status)
 
-                job_id = job_store.create_job(request.config_file, request.job_id, request.expiry_seconds)
+                job_id = job_store.ensure_job_id(job_id)
+                coro = run_evaluation(job_id, request.config_file, request.reps, session_manager)
+                (job_id, task) = job_store.create_job(coro, request.config_file, job_id, request.expiry_seconds)
                 await self.create_cleanup_task(app=app, name="async_evaluation", job_store=job_store)
-                background_tasks.add_task(run_evaluation, job_id, request.config_file, request.reps, session_manager)
+                background_tasks.add_task(self.task_waiter, task)
 
                 return AIQEvaluateResponse(job_id=job_id, status="submitted")
 
@@ -535,7 +545,7 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                                  payload: typing.Any,
                                  session_manager: AIQSessionManager,
                                  result_type: type):
-            """Background task to run the evaluation."""
+            """Background task to run the generation."""
             async with async_job_lock:
                 try:
                     result = await generate_single_response(payload=payload,
@@ -543,8 +553,13 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                                                             result_type=result_type)
                     job_store.update_status(job_id, "success", output=result)
                 except Exception as e:
-                    logger.error("Error in evaluation job %s: %s", job_id, e)
-                    job_store.update_status(job_id, "failure", error=str(e))
+                    logger.error("Error in generation job %s: %s", job_id, e)
+                    try:
+                        job_store.update_status(job_id, "failure", error=str(e))
+                    except:
+                        # If the job was not found, it might have been cleaned up already
+                        # We can ignore this error as the job is likely already expired
+                        pass
 
         def _job_status_to_response(job: JobInfo) -> AIQAsyncGenerationStatusResponse:
             job_output = job.output
@@ -568,27 +583,24 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                 async with session_manager.session(request=http_request):
 
                     # if job_id is present and already exists return the job info
-                    if request.job_id:
-                        job = job_store.get_job(request.job_id)
+                    job_id = request.job_id
+                    if job_id:
+                        job = job_store.get_job(job_id)
                         if job:
                             return AIQAsyncGenerateResponse(job_id=job.job_id, status=job.status)
-
-                    job_id = job_store.create_job(job_id=request.job_id, expiry_seconds=request.expiry_seconds)
-                    await self.create_cleanup_task(app=app, name="async_generation", job_store=job_store)
 
                     # The fastapi/starlette background tasks won't begin executing until after the response is sent
                     # to the client, so we need to wrap the task in a function, alowing us to start the task now,
                     # and allowing the background task function to await the results.
-                    task = asyncio.create_task(
-                        run_generation(job_id=job_id,
-                                       payload=request,
-                                       session_manager=session_manager,
-                                       result_type=final_result_type))
+                    job_id = job_store.ensure_job_id(job_id)
+                    coro = run_generation(job_id=job_id,
+                                          payload=request,
+                                          session_manager=session_manager,
+                                          result_type=final_result_type)
+                    (job_id, task) = job_store.create_job(coro, job_id=job_id, expiry_seconds=request.expiry_seconds)
+                    await self.create_cleanup_task(app=app, name="async_generation", job_store=job_store)
 
-                    async def wrapped_task(t: asyncio.Task):
-                        return await t
-
-                    background_tasks.add_task(wrapped_task, task)
+                    background_tasks.add_task(self.task_waiter, task)
 
                     now = time.time()
                     sync_timeout = now + request.sync_timeout

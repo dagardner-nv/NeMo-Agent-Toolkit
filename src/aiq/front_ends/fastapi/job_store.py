@@ -13,16 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import logging
 import os
 import shutil
+from collections.abc import Coroutine
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from enum import Enum
+from operator import attrgetter
 from uuid import uuid4
 
 from pydantic import BaseModel
+from pydantic import ConfigDict
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +42,11 @@ class JobStatus(str, Enum):
 
 # pydantic model for the job status
 class JobInfo(BaseModel):
+    # needed for the task attribute
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     job_id: str
+    task: asyncio.Task | None
     status: JobStatus
     config_file: str | None
     error: str | None
@@ -61,18 +69,26 @@ class JobStore:
     def __init__(self):
         self._jobs = {}
 
+    def ensure_job_id(self, job_id: str | None) -> str:
+        if job_id is None:
+            return str(uuid4())
+
+        return job_id
+
     def create_job(self,
+                   coro: Coroutine,
                    config_file: str | None = None,
                    job_id: str | None = None,
-                   expiry_seconds: int = DEFAULT_EXPIRY) -> str:
-        if job_id is None:
-            job_id = str(uuid4())
+                   expiry_seconds: int = DEFAULT_EXPIRY) -> tuple[str, asyncio.Task]:
+        job_id = self.ensure_job_id(job_id)
 
         clamped_expiry = max(self.MIN_EXPIRY, min(expiry_seconds, self.MAX_EXPIRY))
         if expiry_seconds != clamped_expiry:
             logger.info("Clamped expiry_seconds from %d to %d for job %s", expiry_seconds, clamped_expiry, job_id)
 
+        task = asyncio.create_task(coro)
         job = JobInfo(job_id=job_id,
+                      task=task,
                       status=JobStatus.SUBMITTED,
                       config_file=config_file,
                       created_at=datetime.now(UTC),
@@ -82,7 +98,7 @@ class JobStore:
                       expiry_seconds=clamped_expiry)
         self._jobs[job_id] = job
         logger.info("Created new job %s with config %s", job_id, config_file)
-        return job_id
+        return (job_id, task)
 
     def update_status(self,
                       job_id: str,
@@ -129,9 +145,29 @@ class JobStore:
 
     def get_expires_at(self, job: JobInfo) -> datetime | None:
         """Get the time for a job to expire."""
-        if job.status in self.ACTIVE_STATUS:
-            return None
+        expired_delta = timedelta(seconds=job.expiry_seconds)
+        if job.status == JobStatus.RUNNING:
+            # Cancel a long running job if it has been running for 4x its expiry time. This prevents a job stuck in a
+            # loop from preventing other jobs from running.
+            expired_delta *= 4
+
         return job.updated_at + timedelta(seconds=job.expiry_seconds)
+
+    def _cleanup_job(self, job: JobInfo):
+        # Cancel the task if it is still running
+        if job.task is not None and not job.task.done():
+            logger.info("Cancelling task for expired job %s", job.job_id)
+            job.task.cancel()
+
+        # cleanup output dir if present
+        if job.output_path:
+            logger.info("Cleaning up output directory for job %s at %s", job.job_id, job.output_path)
+            # If it is a file remove it
+            if os.path.isfile(job.output_path):
+                os.remove(job.output_path)
+            # If it is a directory remove it
+            elif os.path.isdir(job.output_path):
+                shutil.rmtree(job.output_path)
 
     def cleanup_expired_jobs(self):
         """
@@ -140,31 +176,31 @@ class JobStore:
         This is because jobs may not be processed in the order they are created.
         """
         now = datetime.now(UTC)
+        logger.info("Cleaning up expired jobs at %s", now)
 
         # Filter out active jobs
-        finished_jobs = {job_id: job for job_id, job in self._jobs.items() if job.status not in self.ACTIVE_STATUS}
+        finished_jobs = []
+        running_jobs = []
+
+        for job_id, job in self._jobs.items():
+            if job.status not in self.ACTIVE_STATUS:
+                finished_jobs.append(job)
+            else:
+                running_jobs.append(job)
 
         # Sort finished jobs by updated_at descending
-        sorted_finished = sorted(finished_jobs.items(), key=lambda item: item[1].updated_at, reverse=True)
+        sorted_finished = sorted(finished_jobs, key=attrgetter('updated_at'), reverse=True)
+        sorted_running = sorted(running_jobs, key=attrgetter('updated_at'), reverse=True)
 
         # Always keep the most recent finished job
-        jobs_to_check = sorted_finished[1:]
+        jobs_to_check = sorted_finished[1:] + sorted_running
 
         expired_ids = []
-        for job_id, job in jobs_to_check:
+        for job in jobs_to_check:
             expires_at = self.get_expires_at(job)
             if expires_at and now > expires_at:
-                expired_ids.append(job_id)
-                # TODO: JobInfo should contain a reference to the task so that it can be cancelled if needed
-                # cleanup output dir if present
-                if job.output_path:
-                    logger.info("Cleaning up output directory for job %s at %s", job_id, job.output_path)
-                    # If it is a file remove it
-                    if os.path.isfile(job.output_path):
-                        os.remove(job.output_path)
-                    # If it is a directory remove it
-                    elif os.path.isdir(job.output_path):
-                        shutil.rmtree(job.output_path)
+                expired_ids.append(job.job_id)
+                self._cleanup_job(job)
 
         for job_id in expired_ids:
             del self._jobs[job_id]
