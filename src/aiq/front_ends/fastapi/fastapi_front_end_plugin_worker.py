@@ -75,6 +75,8 @@ class FastApiFrontEndPluginWorkerBase(ABC):
         self._cleanup_tasks: list[str] = []
         self._cleanup_tasks_lock = asyncio.Lock()
 
+        print("\n***************\nInstantiating fastapi: FastApiFrontEndPluginWorkerBase\n***************\n")
+
     @property
     def config(self) -> AIQConfig:
         return self._config
@@ -171,7 +173,7 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
     def __init__(self, config: AIQConfig):
         super().__init__(config)
 
-        print("\n***************\nInstantiating fastapi\n***************\n")
+        print("\n***************\nInstantiating fastapi: FastApiFrontEndPluginWorker\n***************\n")
 
     @staticmethod
     async def _periodic_cleanup(name: str, job_store: JobStore, sleep_time_sec: int = 300):
@@ -659,7 +661,7 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                     methods=[endpoint.method],
                     description="Stream raw intermediate steps without any step adaptor translations.\n"
                     "Use filter_steps query parameter to filter steps by type (comma-separated list) or\
-                        set to 'none' to suppress all intermediate steps."                                                                          ,
+                        set to 'none' to suppress all intermediate steps."                                                                                                                                                    ,
                 )
 
             elif (endpoint.method == "POST"):
@@ -696,7 +698,7 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
                     response_model=GenerateStreamResponseType,
                     description="Stream raw intermediate steps without any step adaptor translations.\n"
                     "Use filter_steps query parameter to filter steps by type (comma-separated list) or \
-                        set to 'none' to suppress all intermediate steps."                                                                          ,
+                        set to 'none' to suppress all intermediate steps."                                                                                                                                                    ,
                     responses={500: response_500},
                 )
 
