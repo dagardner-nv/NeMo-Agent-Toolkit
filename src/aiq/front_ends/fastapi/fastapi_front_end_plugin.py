@@ -63,6 +63,7 @@ class FastApiFrontEndPlugin(FrontEndBase[FastApiFrontEndConfig]):
 
                 reload_excludes = ["./.*"]
 
+                print("\n***************\nStarting FastAPI server\n***************\n")
                 uvicorn.run("aiq.front_ends.fastapi.main:get_app",
                             host=self.front_end_config.host,
                             port=self.front_end_config.port,
