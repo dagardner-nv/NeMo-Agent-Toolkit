@@ -17,6 +17,9 @@ from __future__ import annotations
 
 import importlib.metadata
 import logging
+import math
+import os
+import stat
 import time
 from contextlib import asynccontextmanager
 from enum import IntFlag
@@ -163,9 +166,12 @@ def discover_and_register_plugins(plugin_type: PluginTypes):
 
                 start_time = time.time()
 
-                entry_point.load()
+                module = entry_point.load()
 
                 elapsed_time = (time.time() - start_time) * 1000
+
+                fs_mod_time = os.stat(module.__spec__.cached)[stat.ST_MTIME]
+                was_cache_built = fs_mod_time >= math.floor(start_time)
 
                 logger.debug("Loading module '%s' from entry point '%s'...Complete (%f ms)",
                              entry_point.module,
