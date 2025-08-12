@@ -45,7 +45,7 @@
   "initializeCommand": [
     "/bin/bash",
     "-c",
-    "${localWorkspaceFolder}/.devcontainer/initialize-command.sh && mkdir -m 0755 -p ${localWorkspaceFolder}/../.{aws,cache,config,conda/pkgs,conda/${localWorkspaceFolderBasename}-cuda12.5-envs}"
+    "mkdir -m 0755 -p ${localWorkspaceFolder}/../.{aws,cache,config,conda/pkgs,conda/${localWorkspaceFolderBasename}-cuda12.5-envs}"
   ],
   "postAttachCommand": [
     "/bin/bash",
