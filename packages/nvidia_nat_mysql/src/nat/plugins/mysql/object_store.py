@@ -18,8 +18,6 @@ from typing import ClassVar
 
 from pydantic import Field
 
-from nat.builder.builder import Builder
-from nat.cli.register_workflow import register_object_store
 from nat.data_models.object_store import ObjectStoreBaseConfig
 
 
@@ -55,12 +53,3 @@ class MySQLObjectStoreClientConfig(ObjectStoreBaseConfig, name="mysql"):
         default=os.environ.get(PASSWORD_ENV),
         description="The password used to connect to the MySQL server (uses {PASSWORD_ENV} if unspecifed)",
     )
-
-
-@register_object_store(config_type=MySQLObjectStoreClientConfig)
-async def mysql_object_store_client(config: MySQLObjectStoreClientConfig, builder: Builder):
-
-    from .mysql_object_store import MySQLObjectStore
-
-    async with MySQLObjectStore(config) as store:
-        yield store

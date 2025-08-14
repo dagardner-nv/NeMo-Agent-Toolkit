@@ -15,8 +15,6 @@
 
 from pydantic import Field
 
-from nat.builder.builder import Builder
-from nat.cli.register_workflow import register_object_store
 from nat.data_models.object_store import ObjectStoreBaseConfig
 
 
@@ -29,12 +27,3 @@ class RedisObjectStoreClientConfig(ObjectStoreBaseConfig, name="redis"):
     db: int = Field(default=0, description="The Redis logical database number")
     port: int = Field(default=6379, description="The port of the Redis server")
     bucket_name: str = Field(description="The name of the bucket to use for the object store")
-
-
-@register_object_store(config_type=RedisObjectStoreClientConfig)
-async def redis_object_store_client(config: RedisObjectStoreClientConfig, _builder: Builder):
-
-    from .redis_object_store import RedisObjectStore
-
-    async with RedisObjectStore(config) as store:
-        yield store

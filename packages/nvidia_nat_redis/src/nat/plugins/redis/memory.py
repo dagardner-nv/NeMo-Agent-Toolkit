@@ -13,12 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import redis.asyncio as redis
 from pydantic import Field
 
-from nat.builder.builder import Builder
-from nat.builder.framework_enum import LLMFrameworkEnum
-from nat.cli.register_workflow import register_memory
 from nat.data_models.component_ref import EmbedderRef
 from nat.data_models.memory import MemoryBaseConfig
 
@@ -30,28 +26,3 @@ class RedisMemoryClientConfig(MemoryBaseConfig, name="redis_memory"):
     key_prefix: str = Field(default="nat", description="Key prefix to use for redis keys")
     embedder: EmbedderRef = Field(description=("Instance name of the memory client instance from the workflow "
                                                "configuration object."))
-
-
-@register_memory(config_type=RedisMemoryClientConfig)
-async def redis_memory_client(config: RedisMemoryClientConfig, builder: Builder):
-
-    from nat.plugins.redis.redis_editor import RedisEditor
-
-    from .schema import ensure_index_exists
-
-    redis_client = redis.Redis(host=config.host,
-                               port=config.port,
-                               db=config.db,
-                               decode_responses=True,
-                               socket_timeout=5.0,
-                               socket_connect_timeout=5.0)
-
-    embedder = await builder.get_embedder(config.embedder, wrapper_type=LLMFrameworkEnum.LANGCHAIN)
-
-    test_embedding = await embedder.aembed_query("test")
-    embedding_dim = len(test_embedding)
-    await ensure_index_exists(client=redis_client, key_prefix=config.key_prefix, embedding_dim=embedding_dim)
-
-    memory_editor = RedisEditor(redis_client=redis_client, key_prefix=config.key_prefix, embedder=embedder)
-
-    yield memory_editor

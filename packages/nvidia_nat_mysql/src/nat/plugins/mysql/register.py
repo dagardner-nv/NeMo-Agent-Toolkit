@@ -19,4 +19,16 @@
 
 # Import any providers which need to be automatically registered here
 
-from . import object_store
+from nat.builder.builder import Builder
+from nat.cli.register_workflow import register_object_store
+
+from .object_store import MySQLObjectStoreClientConfig
+
+
+@register_object_store(config_type=MySQLObjectStoreClientConfig)
+async def mysql_object_store_client(config: MySQLObjectStoreClientConfig, _builder: Builder):
+
+    from .mysql_object_store import MySQLObjectStore
+
+    async with MySQLObjectStore(config) as store:
+        yield store

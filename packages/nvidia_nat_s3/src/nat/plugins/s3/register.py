@@ -19,4 +19,15 @@
 
 # Import any providers which need to be automatically registered here
 
-from . import object_store
+from nat.builder.builder import Builder
+from nat.cli.register_workflow import register_object_store
+from nat.plugins.s3.object_store import S3ObjectStoreClientConfig
+
+
+@register_object_store(config_type=S3ObjectStoreClientConfig)
+async def s3_object_store_client(config: S3ObjectStoreClientConfig, _builder: Builder):
+
+    from .s3_object_store import S3ObjectStore
+
+    async with S3ObjectStore(config) as store:
+        yield store
