@@ -44,11 +44,11 @@ class S3ObjectStore(ObjectStore):
 
         if not config.access_key:
             raise ValueError("Access key is not set. Please specify it in the environment variable "
-                             "'{S3ObjectStoreClientConfig.ACCESS_KEY_ENV}'.")
+                             f"'{S3ObjectStoreClientConfig.ACCESS_KEY_ENV}'.")
 
         if not config.secret_key:
             raise ValueError("Secret key is not set. Please specify it in the environment variable "
-                             "'{S3ObjectStoreClientConfig.SECRET_KEY_ENV}'.")
+                             f"'{S3ObjectStoreClientConfig.SECRET_KEY_ENV}'.")
 
         self._client_args = {
             "aws_access_key_id": config.access_key,

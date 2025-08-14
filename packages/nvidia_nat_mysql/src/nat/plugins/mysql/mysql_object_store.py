@@ -63,28 +63,33 @@ class MySQLObjectStore(ObjectStore):
         async with self._conn_pool.acquire() as conn:
             async with conn.cursor() as cur:
 
-                # Create schema (database) if doesn't exist
-                await cur.execute(f"CREATE SCHEMA IF NOT EXISTS {self._schema} DEFAULT CHARACTER SET utf8mb4;")
-                await cur.execute(f"USE {self._schema};")
+                # Suppress MySQL "IF NOT EXISTS" notes that surface as warnings in the driver
+                await cur.execute("SET sql_notes = 0;")
+                try:
+                    # Create schema (database) if doesn't exist
+                    await cur.execute(f"CREATE SCHEMA IF NOT EXISTS {self._schema} DEFAULT CHARACTER SET utf8mb4;")
+                    await cur.execute(f"USE {self._schema};")
 
-                # Create metadata table_schema
-                await cur.execute("""
-                CREATE TABLE IF NOT EXISTS object_meta (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    path VARCHAR(768) NOT NULL UNIQUE,
-                    size BIGINT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                ) ENGINE=InnoDB;
-                """)
+                    # Create metadata table_schema
+                    await cur.execute("""
+                    CREATE TABLE IF NOT EXISTS object_meta (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        path VARCHAR(768) NOT NULL UNIQUE,
+                        size BIGINT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB;
+                    """)
 
-                # Create blob data table
-                await cur.execute("""
-                CREATE TABLE IF NOT EXISTS object_data (
-                    id INT PRIMARY KEY,
-                    data LONGBLOB NOT NULL,
-                    FOREIGN KEY (id) REFERENCES object_meta(id) ON DELETE CASCADE
-                ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
-                """)
+                    # Create blob data table
+                    await cur.execute("""
+                    CREATE TABLE IF NOT EXISTS object_data (
+                        id INT PRIMARY KEY,
+                        data LONGBLOB NOT NULL,
+                        FOREIGN KEY (id) REFERENCES object_meta(id) ON DELETE CASCADE
+                    ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+                    """)
+                finally:
+                    await cur.execute("SET sql_notes = 1;")
 
             await conn.commit()
 
@@ -145,8 +150,8 @@ class MySQLObjectStore(ObjectStore):
                     await cur.execute(
                         """
                         INSERT INTO object_meta (path, size)
-                        VALUES (%s, %s)
-                        ON DUPLICATE KEY UPDATE size=VALUES(size), created_at=CURRENT_TIMESTAMP
+                        VALUES (%s, %s) AS new
+                        ON DUPLICATE KEY UPDATE size=new.size, created_at=CURRENT_TIMESTAMP
                         """, (key, len(item.data)))
                     await cur.execute("SELECT id FROM object_meta WHERE path=%s FOR UPDATE;", (key, ))
                     (obj_id, ) = await cur.fetchone()
