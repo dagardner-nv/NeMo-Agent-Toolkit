@@ -32,7 +32,7 @@ class RedisObjectStoreClientConfig(ObjectStoreBaseConfig, name="redis"):
 
 
 @register_object_store(config_type=RedisObjectStoreClientConfig)
-async def redis_object_store_client(config: RedisObjectStoreClientConfig, builder: Builder):
+async def redis_object_store_client(config: RedisObjectStoreClientConfig, _builder: Builder):
 
     from .redis_object_store import RedisObjectStore
 

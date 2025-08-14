@@ -68,7 +68,6 @@ async def upload_directory(source_dir: Path, object_store: S3ObjectStore | MySQL
 
     Args:
         source_dir: The local directory to upload.
-        bucket_name: The name of the bucket to upload to.
         object_store: The object store to use.
     """
 
@@ -154,10 +153,6 @@ def main(store_type: str,
     elif store_type == "mysql":
         for key in ["endpoint_url", "access_key", "secret_key", "region"]:
             assert all_args.pop(key, None) is None, f"{key} is not supported for MySQL"
-        if "username" not in all_args:
-            all_args["username"] = "root"
-        if "password" not in all_args:
-            all_args["password"] = "root"
         config = MySQLObjectStoreClientConfig(**all_args)
         object_store = MySQLObjectStore(config)
     elif store_type == "redis":

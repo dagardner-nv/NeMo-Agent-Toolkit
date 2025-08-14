@@ -22,8 +22,9 @@ from nat.data_models.object_store import KeyAlreadyExistsError
 from nat.data_models.object_store import NoSuchKeyError
 from nat.object_store.interfaces import ObjectStore
 from nat.object_store.models import ObjectStoreItem
-from nat.plugins.redis.object_store import RedisObjectStoreClientConfig
 from nat.utils.type_utils import override
+
+from .object_store import RedisObjectStoreClientConfig
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +64,11 @@ class RedisObjectStore(ObjectStore):
         if not res:
             raise RuntimeError("Failed to connect to Redis")
 
-        logger.info(f"Connected Redis client for {self._config.bucket_name} at "
-                    f"{self._config.host}:{self._config.port}/{self._config.db}")
+        logger.info("Connected Redis client for %s at %s:%s/%s",
+                    self._config.bucket_name,
+                    self._config.host,
+                    self._config.port,
+                    self._config.db)
 
         return self
 
