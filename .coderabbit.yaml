@@ -21,13 +21,14 @@ reviews:
   collapse_walkthrough: false
   pre_merge_checks:
     title:
-      mode: warning
+      mode: error
       requirements: "Title should be concise, and descriptive, and use imperative mood (max ~72 chars)."
     description:
       mode: warning
     issue_assessment:
       mode: warning
   auto_review:
+    base_branches: ["develop", "release/.*"]
     enabled: true
     drafts: false
     auto_incremental_review: true

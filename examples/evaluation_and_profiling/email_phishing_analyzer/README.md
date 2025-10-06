@@ -206,10 +206,14 @@ Ensure `NVIDIA_API_KEY` is set in your environment.
 
 ### Outputs
 Results are written to the path specified by `optimizer.output_path`. Expect artifacts such as:
-- `best_params.json`: Highest-scoring parameter set.
-- `optimization_results.json`: Per-trial metrics and parameters.
-- `pareto_front.png`, `optimization_history.png`, `param_importances.png`: Visual summaries.
-- For prompt optimization (when enabled): `optimized_prompts.json` and per-generation prompt history.
+- `optimized_config.yml`: Tuned configuration derived from the selected trial.
+- You will also see a configuration file for each iteration of numeric trials. For example, `config_numeric_trial_0.yml`
+  will contain the configuration for the first numeric trial. This is helpful for selecting specific trials whose metrics
+  you may prefer to the optimizer selected trial.
+- `trials_dataframe_params.csv`: Full Optuna trials `dataframe` (`values`, `params`, `timings`, `rep_scores`).
+- `plots`: This directory will contain Pareto visualizations of the optimization results.
+- For prompt optimization (when enabled): `optimized_prompts.json` and per-generation prompt history. Per generation prompt
+  history files are named `optimized_prompts_gen{N}.json` where `{N}` is the generation number starting from 1. 
 
 ---
 
@@ -221,7 +225,7 @@ For a production deployment, use Docker:
 
 Prior to building the Docker image ensure that you have followed the steps in the [Installation and Setup](#installation-and-setup) section, and you are currently in the NeMo Agent toolkit virtual environment.
 
-From the root directory of the Simple Calculator repository, build the Docker image:
+From the root directory of the NeMo Agent toolkit repository, build the Docker image:
 
 ```bash
 docker build --build-arg NAT_VERSION=$(python -m setuptools_scm) -t email_phishing_analyzer -f examples/evaluation_and_profiling/email_phishing_analyzer/Dockerfile .
