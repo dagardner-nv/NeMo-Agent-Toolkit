@@ -134,6 +134,10 @@ async def otel_telemetry_exporter(config: OtelCollectorTelemetryExporter, builde
 class PatronusTelemetryExporter(BatchConfigMixin, CollectorConfigMixin, TelemetryExporterBaseConfig, name="patronus"):
     """A telemetry exporter to transmit traces to Patronus service."""
 
+    endpoint: str = Field(
+        description="The Patronus OTEL endpoint",
+        default="https://otel.patronus.ai:4317",
+    )
     api_key: str = Field(description="The Patronus API key", default="")
     resource_attributes: dict[str, str] = Field(default_factory=dict,
                                                 description="The resource attributes to add to the span")
@@ -153,6 +157,7 @@ async def patronus_telemetry_exporter(config: PatronusTelemetryExporter, builder
         "x-api-key": api_key,
         "pat-project-name": config.project,
     }
+
     yield OTLPSpanAdapterExporter(endpoint=config.endpoint,
                                   headers=headers,
                                   batch_size=config.batch_size,
