@@ -37,8 +37,11 @@ class MCPFrontEndConfig(FrontEndBaseConfig, name="mcp"):
     port: int = Field(default=9901, description="Port to bind the server to (default: 9901)", ge=0, le=65535)
     debug: bool = Field(default=False, description="Enable debug mode (default: False)")
     log_level: str = Field(default="INFO", description="Log level for the MCP server (default: INFO)")
-    tool_names: list[str] = Field(default_factory=list,
-                                  description="The list of tools MCP server will expose (default: all tools)")
+    tool_names: list[str] = Field(
+        default_factory=list,
+        description="The list of tools MCP server will expose (default: all tools)."
+        "Tool names can be functions or function groups",
+    )
     transport: Literal["sse", "streamable-http"] = Field(
         default="streamable-http",
         description="Transport type for the MCP server (default: streamable-http, backwards compatible with sse)")
@@ -47,6 +50,19 @@ class MCPFrontEndConfig(FrontEndBaseConfig, name="mcp"):
 
     server_auth: OAuth2ResourceServerConfig | None = Field(
         default=None, description=("OAuth 2.0 Resource Server configuration for token verification."))
+
+    # Memory profiling configuration
+    enable_memory_profiling: bool = Field(default=False,
+                                          description="Enable memory profiling and diagnostics (default: False)")
+    memory_profile_interval: int = Field(default=50,
+                                         description="Log memory stats every N requests (default: 50)",
+                                         ge=1)
+    memory_profile_top_n: int = Field(default=10,
+                                      description="Number of top memory allocations to log (default: 10)",
+                                      ge=1,
+                                      le=50)
+    memory_profile_log_level: str = Field(default="DEBUG",
+                                          description="Log level for memory profiling output (default: DEBUG)")
 
     @model_validator(mode="after")
     def validate_security_configuration(self):
