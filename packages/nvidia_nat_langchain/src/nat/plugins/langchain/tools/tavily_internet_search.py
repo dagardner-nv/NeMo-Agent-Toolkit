@@ -16,6 +16,7 @@
 from nat.builder.builder import Builder
 from nat.builder.function_info import FunctionInfo
 from nat.cli.register_workflow import register_function
+from nat.data_models.common import OptionalSecretStr
 from nat.data_models.function import FunctionBaseConfig
 
 
@@ -26,7 +27,7 @@ class TavilyInternetSearchToolConfig(FunctionBaseConfig, name="tavily_internet_s
     Requires a TAVILY_API_KEY.
     """
     max_results: int = 3
-    api_key: str = ""
+    api_key: OptionalSecretStr = None
 
 
 @register_function(config_type=TavilyInternetSearchToolConfig)
