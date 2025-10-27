@@ -185,3 +185,35 @@ async def test_langsmith_full_workflow(config_dir: Path,
     assert done, "Timed out waiting for LangSmith run to be ingested"
     # Since we have a newly created project, the above workflow should have created exactly one root run
     assert len(runlist) == 1
+
+
+@pytest.mark.slow
+@pytest.mark.integration
+async def test_patronus_full_workflow(config_dir: Path,
+                                      patronus_api_key: dict[str, str],
+                                      patronus_url: str,
+                                      patronus_project: dict[str, str],
+                                      question: str,
+                                      expected_answer: str):
+    config_file = config_dir / "config-patronus.yml"
+    config = load_config(config_file)
+    config.general.telemetry.tracing["patronus"].project = patronus_project["name"]
+
+    await run_workflow(config=config, question=question, expected_answer=expected_answer)
+
+    # Verify that traces were ingested
+    import requests
+
+    traces = []
+    deadline = time.time() + 30
+    while len(traces) == 0 and time.time() < deadline:
+        await asyncio.sleep(0.5)
+        response = requests.get(f"{patronus_url}/trace-insight-jobs",
+                                headers={"X-API-KEY": patronus_api_key["PATRONUS_API_KEY"]},
+                                params={
+                                    "project_id": patronus_project["id"], "limit": 10, "offset": 0
+                                })
+        response.raise_for_status()
+        traces = response.json().get("insight_jobs", [])
+
+    assert len(traces) == 1

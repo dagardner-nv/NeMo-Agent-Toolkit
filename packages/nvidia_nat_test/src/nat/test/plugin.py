@@ -28,7 +28,6 @@ import pytest_asyncio
 
 if typing.TYPE_CHECKING:
     import langsmith.client
-
     from docker.client import DockerClient
 
 
@@ -290,14 +289,81 @@ def langsmith_client_fixture(langsmith_api_key: str, fail_missing: bool) -> "lan
         pytest.skip(reason=reason)
 
 
+@pytest.fixture(name="project_name")
+def project_name_fixture() -> str:
+    # Create a unique project name for each test run
+    return f"nat-e2e-test-{time.time()}-{random.random()}"
+
+
 @pytest.fixture(name="langsmith_project_name")
-def langsmith_project_name_fixture(langsmith_client: "langsmith.client.Client") -> Generator[str]:
-    # Createa a unique project name for each test run
-    project_name = f"nat-e2e-test-{time.time()}-{random.random()}"
+def langsmith_project_name_fixture(langsmith_client: "langsmith.client.Client", project_name: str) -> Generator[str]:
     langsmith_client.create_project(project_name)
     yield project_name
 
     langsmith_client.delete_project(project_name=project_name)
+
+
+@pytest.fixture(name="patronus_api_key", scope='session')
+def patronus_api_key_fixture(fail_missing: bool):
+    """
+    Use for integration tests that require a Patronus API key.
+    """
+    yield require_env_variables(
+        varnames=["PATRONUS_API_KEY"],
+        reason="Patronus integration tests require the `PATRONUS_API_KEY` environment variable to be defined.",
+        fail_missing=fail_missing)
+
+
+@pytest.fixture(name="patronus_url")
+def patronus_url_fixture() -> str:
+    return os.getenv("NAT_CI_PATRONUS_URL", "https://api.patronus.ai/v1")
+
+
+@pytest.fixture(name="patronus_project")
+def patronus_project_name_fixture(patronus_url: str, patronus_api_key: dict[str, str],
+                                  project_name: str) -> Generator[dict[str, str]]:
+    import requests
+
+    # Patronus project names have some restrictions, a max length of 50 characters and cannot contain dots
+    project_name = project_name.replace(".", "-")[:50]
+    projects_url = f"{patronus_url}/projects"
+    headers = {"X-API-KEY": patronus_api_key["PATRONUS_API_KEY"]}
+    response = requests.post(projects_url, headers=headers, json={"name": project_name})
+    response.raise_for_status()
+    project_id = response.json()["id"]
+
+    yield {"id": project_id, "name": project_name}
+
+    time.sleep(10)
+    deadline = time.time() + 30
+    deleted_spans = False
+    while not deleted_spans and time.time() < deadline:
+        try:
+            response = requests.delete(f"{patronus_url}/otel/spans", headers=headers, params={"project_id": project_id})
+            response.raise_for_status()
+            deleted_spans = True
+        except:
+            if time.time() + 1 < deadline:
+                time.sleep(1)
+
+    assert deleted_spans, "Timed out waiting to delete Patronus spans"
+
+    time.sleep(10)
+    deadline = time.time() + 30
+    deleted_project = False
+    started = time.time()
+    while not deleted_project and time.time() < deadline:
+        try:
+            response = requests.delete(f"{projects_url}/{project_id}", headers=headers)
+            response.raise_for_status()
+            deleted_project = True
+        except:
+            if time.time() + 1 < deadline:
+                time.sleep(1)
+
+    ended = time.time()
+
+    assert deleted_project, f"Timed out waiting to delete Patronus project\t {ended - started}s elapsed"
 
 
 @pytest.fixture(name="require_docker", scope='session')
