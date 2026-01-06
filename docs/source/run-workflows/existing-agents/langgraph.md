@@ -33,6 +33,7 @@ The `langgraph_wrapper` workflow type requires a minimal configuration file that
 
 ### Configuration Example
 
+<!-- path-check-skip-begin -->
 ```yaml
 workflow:
   _type: langgraph_wrapper
@@ -41,6 +42,7 @@ workflow:
   graph: path/to/agent.py:agent
   env: .env
 ```
+  <!-- path-check-skip-end -->
 
 ### Configuration Parameters
 
@@ -60,6 +62,7 @@ The configuration parameters mirror the [LangGraph CLI configuration file](https
 
 For simple LangGraph agents, you can run them directly through the wrapper without any code modifications:
 
+<!-- path-check-skip-begin -->
 ```yaml
 workflow:
   _type: langgraph_wrapper
@@ -68,6 +71,7 @@ workflow:
   graph: external/my-langgraph-agent/agent.py:agent
   env: .env
 ```
+<!-- path-check-skip-end -->
 
 This configuration works when your agent:
 
@@ -166,6 +170,7 @@ For more information on available builder methods, refer to the [Building Workfl
 
 With the modified agent code, you can now specify components in your configuration:
 
+<!-- path-check-skip-begin -->
 ```yaml
 llms:
   agent:
@@ -191,9 +196,11 @@ workflow:
   graph: path/to/configurable_agent.py:agent
   env: .env
 ```
+<!-- path-check-skip-end -->
 
 Now you can change components by modifying the configuration without touching your agent code:
 
+<!-- path-check-skip-begin -->
 ```yaml
 llms:
   agent:
@@ -201,11 +208,13 @@ llms:
     model: gcp/google/gemini-3-pro
     api_key: ${NVIDIA_API_KEY}
 ```
+<!-- path-check-skip-end -->
 
 ## Adding Observability
 
 You can add observability to your LangGraph agent by including telemetry configuration:
 
+<!-- path-check-skip-begin -->
 ```yaml
 general:
   telemetry:
@@ -229,6 +238,7 @@ workflow:
   graph: path/to/configurable_agent.py:agent
   env: .env
 ```
+<!-- path-check-skip-end -->
 
 For more information on observability options, refer to the [Observability Documentation](../observe/observe.md).
 
