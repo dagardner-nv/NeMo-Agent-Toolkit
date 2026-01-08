@@ -33,13 +33,24 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     export TZ=Etc/UTC && \
     apt-get update && \
     apt upgrade -y && \
-    apt-get install --no-install-recommends  -y ca-certificates tzdata && \
+    apt-get install --no-install-recommends  -y \
+        build-essential \
+        ca-certificates \
+        git \
+        tzdata && \
     apt clean && \
     update-ca-certificates
 
 # Set SSL environment variables
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+
+
+# TODO: REVERT LATER
+RUN git clone --branch david-rel-14-cve-mem-leak https://github.com/dagardner-nv/NeMo-Agent-Toolkit.git /workspace && \
+    cd /workspace && \
+    git submodule update --init --recursive && \
+    git checkout ${NAT_VERSION}
 
 # Set working directory
 WORKDIR /workspace
@@ -48,11 +59,10 @@ WORKDIR /workspace
 RUN --mount=type=cache,id=uv_cache,target=/root/.cache/uv,sharing=locked \
     uv venv --python ${PYTHON_VERSION} /workspace/.venv && \
     . /workspace/.venv/bin/activate && \
-    test -n "${NAT_VERSION}" || { echo "NAT_VERSION build-arg is required" >&2; exit 1; } && \
-    uv pip install --prerelease=allow "nvidia-nat[all]==${NAT_VERSION}"
+    uv sync --all-groups --all-extras --refresh-package nvidia-nat
 
 # Environment variables for the venv
 ENV PATH="/workspace/.venv/bin:$PATH"
 
 # Define the entry point to start the nat CLI tool
-ENTRYPOINT ["nat"]
+# ENTRYPOINT ["nat"]
