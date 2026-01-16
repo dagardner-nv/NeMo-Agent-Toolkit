@@ -14,13 +14,13 @@
 # limitations under the License.
 
 
-general:
-  telemetry:
-    tracing:
-      phoenix:
-        _type: phoenix
-        endpoint: http://localhost:6006/v1/traces
-        project: profiler_agent
+# general:
+#   telemetry:
+#     tracing:
+#       phoenix:
+#         _type: phoenix
+#         endpoint: http://localhost:6006/v1/traces
+#         project: profiler_agent
 
 functions:
   px_query:
@@ -56,7 +56,7 @@ llms:
 
 workflow:
   _type: profiler_agent
-  llm_name: nim_llm
+  llm_name: nemotron_49b
   max_retries: 3
   max_iterations: 4
   tools:

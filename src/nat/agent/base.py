@@ -103,7 +103,9 @@ class BaseAgent(ABC):
             The LLM response
         """
         output_message = []
+        print(f"\n*************\nStarting LLM stream with config={config}\n*************\n")
         async for event in runnable.astream(inputs, config=config):
+            print(f"\n*************\nLLM stream event: {event}\n*************\n")
             output_message.append(event.content)
 
         return AIMessage(content="".join(output_message))

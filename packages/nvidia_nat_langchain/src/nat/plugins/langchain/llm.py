@@ -94,12 +94,14 @@ def _patch_llm_based_on_config(client: ModelType, llm_config: LLMBaseConfig) -> 
             raise ValueError(f"Unsupported message type: {type(messages)}")
 
     if isinstance(llm_config, RetryMixin):
+        print("\n********************\nApplying retry patching to LangChain LLM client.\n********************\n")
         client = patch_with_retry(client,
                                   retries=llm_config.num_retries,
                                   retry_codes=llm_config.retry_on_status_codes,
                                   retry_on_messages=llm_config.retry_on_errors)
 
     if isinstance(llm_config, ThinkingMixin) and llm_config.thinking_system_prompt is not None:
+        print("\n********************\nApplying thinking patching to LangChain LLM client.\n********************\n")
         client = patch_with_thinking(
             client,
             LangchainThinkingInjector(
@@ -157,14 +159,19 @@ async def nim_langchain(llm_config: NIMModelConfig, _builder: Builder):
 
     validate_no_responses_api(llm_config, LLMFrameworkEnum.LANGCHAIN)
 
-    # prefer max_completion_tokens over max_tokens
-    client = ChatNVIDIA(
-        **llm_config.model_dump(
+    print("\n*******************\n")
+    dumped = llm_config.model_dump(
             exclude={"type", "max_tokens", "thinking", "api_type"},
             by_alias=True,
             exclude_none=True,
             exclude_unset=True,
-        ),
+        )
+    dumped["stream_options"] = {"include_usage": True}
+    print(dumped)
+    print("\n*******************\n")
+    # prefer max_completion_tokens over max_tokens
+    client = ChatNVIDIA(
+        **dumped,
         max_completion_tokens=llm_config.max_tokens,
     )
 
