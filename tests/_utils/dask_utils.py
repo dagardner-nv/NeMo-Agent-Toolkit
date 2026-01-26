@@ -13,24 +13,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import typing
 
-
-async def await_job(job_id: str, timeout: int = 60) -> typing.Any:
-    """Helper to await a job completion."""
+if typing.TYPE_CHECKING:
     from dask.distributed import Client as DaskClient
+
+
+async def await_job(client: "DaskClient", job_id: str, timeout: int = 60) -> typing.Any:
+    """Helper to await a job completion."""
     from dask.distributed import Variable
 
-    client = await DaskClient(address=os.environ["NAT_DASK_SCHEDULER_ADDRESS"], asynchronous=True)
-    results = None
+    var = Variable(name=job_id, client=client)
 
-    try:
-        var = Variable(name=job_id, client=client)
-        future = await var.get(timeout=5)
-        results = await future.result(timeout=timeout)
+    future = await var.get(timeout=5)
+    results = await future.result(timeout=timeout)
+    return results
 
-    finally:
-        await client.close()
 
+def wait_job(client: "DaskClient", job_id: str, timeout: int = 60) -> typing.Any:
+    """Helper to await a job completion."""
+    from dask.distributed import Variable
+
+    var = Variable(name=job_id, client=client)
+
+    future = var.get(timeout=5)
+    results = future.result(timeout=timeout)
     return results

@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import shutil
+import typing
 from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -24,9 +25,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from _utils.dask_utils import await_job
+from _utils.dask_utils import wait_job
 from nat.data_models.config import Config
 from nat.front_ends.fastapi.fastapi_front_end_config import FastApiFrontEndConfig
 from nat.front_ends.fastapi.fastapi_front_end_plugin_worker import FastApiFrontEndPluginWorker
+
+if typing.TYPE_CHECKING:
+    from dask.distributed import Client as DaskClient
 
 
 @pytest.fixture(name="test_config")
@@ -97,23 +102,21 @@ def create_job(test_client: TestClient, config_file: str, job_id: str | None = N
     return test_client.post("/evaluate", json=payload)
 
 
-@pytest.mark.asyncio
-async def test_create_job(test_client: TestClient, eval_config_file: str):
+def test_create_job(dask_client: "DaskClient", test_client: TestClient, eval_config_file: str):
     """Test creating a new evaluation job."""
     response = create_job(test_client, eval_config_file)
     assert response.status_code == 200
     data = response.json()
     assert "job_id" in data
     assert data["status"] == "submitted"
-    await await_job(data["job_id"])
+    wait_job(dask_client, data["job_id"])
 
 
-@pytest.mark.asyncio
-async def test_get_job_status(test_client: TestClient, eval_config_file: str):
+def test_get_job_status(dask_client: "DaskClient", test_client: TestClient, eval_config_file: str):
     """Test getting the status of a specific job."""
     create_response = create_job(test_client, eval_config_file)
     job_id = create_response.json()["job_id"]
-    await await_job(job_id)
+    wait_job(dask_client, job_id)
 
     status_response = test_client.get(f"/evaluate/job/{job_id}")
     assert status_response.status_code == 200
@@ -130,13 +133,15 @@ def test_get_job_status_not_found(test_client: TestClient):
     assert response.json()["detail"] == "Job non-existent-id not found"
 
 
-@pytest.mark.asyncio
-async def test_get_last_job(test_client: TestClient, eval_config_file: str):
+def test_get_last_job(dask_client: "DaskClient", test_client: TestClient, eval_config_file: str):
     """Test getting the last created job."""
     for i in range(3):
         job_id = f"job-{i}"
+        print(f"\n************\nCreating job {job_id}\n************\n")
         create_job(test_client, eval_config_file, job_id=job_id)
-        await await_job(job_id)
+        print(f"\n************\nAwaiting job {job_id}\n************\n")
+        wait_job(dask_client, job_id)
+        print(f"\n************\njob {job_id} - done\n************\n")
 
     response = test_client.get("/evaluate/job/last")
     assert response.status_code == 200
