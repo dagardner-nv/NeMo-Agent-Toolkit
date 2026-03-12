@@ -102,6 +102,23 @@ def after_pipeline(ctx: click.Context, pipeline_start_time: float, *_, **__):
         logger.debug("Pipeline runtime: %.2f sec", end_time - pipeline_start_time)
 
 
+def _ensure_plugins_loaded():
+    import os
+
+    # This function is a no-op, but it forces the module to be imported and the plugins to be loaded
+    import nest_asyncio2
+    from dotenv import load_dotenv
+
+    # Suppress warnings from transformers
+    os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+
+    # Load environment variables from .env file, if it exists
+    load_dotenv()
+
+    # Apply at the beginning of the file to avoid issues with asyncio
+    nest_asyncio2.apply()
+
+
 def _load_sub_commands():
     # Aliases - need to get start_command from the loaded commands
     from datetime import datetime
