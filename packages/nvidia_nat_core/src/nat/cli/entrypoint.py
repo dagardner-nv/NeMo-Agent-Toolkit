@@ -28,19 +28,9 @@ import sys
 import time
 
 import click
-import nest_asyncio2
-from dotenv import load_dotenv
 
 from nat.utils.log_levels import LOG_LEVELS
 from nat.utils.log_utils import setup_logging as log_utils_setup_logging
-
-from .plugin_loader import discover_and_load_cli_plugins
-
-# Load environment variables from .env file, if it exists
-load_dotenv()
-
-# Apply at the beginning of the file to avoid issues with asyncio
-nest_asyncio2.apply()
 
 
 def setup_logging(log_level: str):
@@ -91,16 +81,6 @@ def cli(ctx: click.Context, log_level: str):
     ctx_dict["log_level"] = log_level
 
 
-# Discover and load ALL CLI commands (core + plugins) via entry points
-discover_and_load_cli_plugins(cli)
-
-# Aliases - need to get start_command from the loaded commands
-start_cmd = cli.commands.get("start")
-if start_cmd and hasattr(start_cmd, "get_command"):
-    cli.add_command(start_cmd.get_command(None, "console"), name="run")  # type: ignore
-    cli.add_command(start_cmd.get_command(None, "fastapi"), name="serve")  # type: ignore
-
-
 @cli.result_callback()
 @click.pass_context
 def after_pipeline(ctx: click.Context, pipeline_start_time: float, *_, **__):
@@ -120,3 +100,29 @@ def after_pipeline(ctx: click.Context, pipeline_start_time: float, *_, **__):
 
     if (pipeline_start_time is not None):
         logger.debug("Pipeline runtime: %.2f sec", end_time - pipeline_start_time)
+
+
+def _load_sub_commands():
+    # Aliases - need to get start_command from the loaded commands
+    from datetime import datetime
+    n0 = datetime.now()
+    print("_load_sub_commands - 0")
+    # Discover and load ALL CLI commands (core + plugins) via entry points
+    from .plugin_loader import discover_and_load_cli_plugins
+    discover_and_load_cli_plugins(cli)
+
+    n1 = datetime.now()
+    print(f"_load_sub_commands - 1 - {n1 - n0} seconds")
+
+    from .commands.start import start_command
+    cli.add_command(start_command, name="start")
+
+    n2 = datetime.now()
+    print(f"_load_sub_commands - 2 - {n2 - n1} seconds")
+    cli.add_command(start_command.get_command(None, "console"), name="run")  # type: ignore
+    cli.add_command(start_command.get_command(None, "fastapi"), name="serve")  # type: ignore
+    n3 = datetime.now()
+    print(f"_load_sub_commands - 3 - {n3 - n2} seconds")
+
+
+_load_sub_commands()
