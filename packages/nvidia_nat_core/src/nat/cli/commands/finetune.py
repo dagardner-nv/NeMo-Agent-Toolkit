@@ -15,15 +15,9 @@
 # limitations under the License.
 """CLI command for running finetuning."""
 
-import logging
 from pathlib import Path
 
 import click
-
-from nat.data_models.finetuning import FinetuneRunConfig
-from nat.finetuning.finetuning_runtime import run_finetuning_sync
-
-logger = logging.getLogger(__name__)
 
 
 @click.command(name="finetune", help="Run finetuning on a workflow using collected trajectories.")
@@ -104,6 +98,12 @@ def finetune_command(
     4. Submit trajectories for training
     5. Monitor training progress
     """
+    import logging
+
+    from nat.data_models.finetuning import FinetuneRunConfig
+    from nat.finetuning.finetuning_runtime import run_finetuning_sync
+
+    logger = logging.getLogger(__name__)
     logger.info("Starting finetuning with config: %s", config_file)
 
     # Apply overrides if provided
