@@ -13,32 +13,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
-import logging
-from contextlib import AsyncExitStack
+import typing
 from pathlib import Path
 
 import click
 
+from nat.data_models.component import COMPONENT_LIST
 from nat.data_models.component import ComponentEnum
-from nat.data_models.registry_handler import RegistryHandlerBaseConfig
+from nat.registry_handlers.schemas.search import SEARCH_FIELDS_LIST
 from nat.registry_handlers.schemas.search import SearchFields
-from nat.registry_handlers.schemas.status import StatusEnum
-from nat.utils.data_models.schema_validator import validate_yaml
 
-logger = logging.getLogger(__name__)
+if typing.TYPE_CHECKING:
+    from nat.data_models.registry_handler import RegistryHandlerBaseConfig
 
 
-async def search_artifacts(registry_handler_config: RegistryHandlerBaseConfig,
+async def search_artifacts(registry_handler_config: "RegistryHandlerBaseConfig",
                            query: str,
                            search_fields: list[SearchFields],
                            visualize: bool,
                            component_types: list[ComponentEnum],
                            save_path: str | None = None,
                            n_results: int = 10) -> None:
+    from contextlib import AsyncExitStack
 
     from nat.cli.type_registry import GlobalTypeRegistry
     from nat.registry_handlers.schemas.search import SearchQuery
+    from nat.registry_handlers.schemas.status import StatusEnum
 
     registry = GlobalTypeRegistry.get()
 
@@ -48,7 +48,8 @@ async def search_artifacts(registry_handler_config: RegistryHandlerBaseConfig,
         registry_handler = await stack.enter_async_context(registry_handler_info.build_fn(registry_handler_config))
 
         if (len(component_types) == 0):
-            component_types = [t.value for t in ComponentEnum]
+            # Perform a shallow copy
+            component_types = COMPONENT_LIST[:]
 
         query = SearchQuery(query=query, fields=search_fields, top_k=n_results, component_types=component_types)
 
@@ -61,11 +62,16 @@ async def search_artifacts(registry_handler_config: RegistryHandlerBaseConfig,
                 registry_handler.save_search_results(search_response=search_response, save_path=save_path)
 
 
+def _validate_yaml(ctx: click.Context, param: click.Parameter, value: str) -> str:
+    from nat.utils.data_models.schema_validator import validate_yaml
+    return validate_yaml(ctx=ctx, param=param, value=value)
+
+
 @click.group(name=__name__, invoke_without_command=True, help="Search for NAT artifacts from remote registry.")
 @click.option(
     "--config_file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path),
-    callback=validate_yaml,
+    callback=_validate_yaml,
     required=False,
     help=("A JSON/YAML file that sets the parameters for the workflow."),
 )
@@ -87,7 +93,7 @@ async def search_artifacts(registry_handler_config: RegistryHandlerBaseConfig,
     "-f",
     "--fields",
     multiple=True,
-    type=click.Choice([e.value for e in SearchFields], case_sensitive=False),
+    type=click.Choice(SEARCH_FIELDS_LIST, case_sensitive=False),
     required=False,
     help=("The fields to include in the search."),
 )
@@ -111,7 +117,7 @@ async def search_artifacts(registry_handler_config: RegistryHandlerBaseConfig,
     "--types",
     "component_types",
     multiple=True,
-    type=click.Choice([e.value for e in ComponentEnum], case_sensitive=False),
+    type=click.Choice(COMPONENT_LIST, case_sensitive=False),
     required=False,
     help=("The component types to include in search."),
 )
@@ -125,8 +131,12 @@ def search(config_file: str,
     """
     Search for NAT artifacts with the specified configuration.
     """
+    import asyncio
+    import logging
 
     from nat.settings.global_settings import GlobalSettings
+
+    logger = logging.getLogger(__name__)
 
     settings = GlobalSettings().get()
 

@@ -86,3 +86,6 @@ class SearchResponse(BaseModel):
     results: list[SearchResponseItem] = []
     params: SearchQuery
     status: StatusMessage
+
+
+SEARCH_FIELDS_LIST = [e.value for e in SearchFields]

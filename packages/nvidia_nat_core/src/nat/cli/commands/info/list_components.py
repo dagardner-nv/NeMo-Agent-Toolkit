@@ -17,7 +17,9 @@ import typing
 
 import click
 
+from nat.data_models.component import COMPONENT_LIST
 from nat.data_models.component import ComponentEnum
+from nat.registry_handlers.schemas.search import SEARCH_FIELDS_LIST
 from nat.registry_handlers.schemas.search import SearchFields
 
 if typing.TYPE_CHECKING:
@@ -44,7 +46,8 @@ async def search_artifacts(registry_handler_config: "RegistryHandlerBaseConfig",
         registry_handler = await stack.enter_async_context(registry_handler_info.build_fn(registry_handler_config))
 
         if (len(component_types) == 0):
-            component_types = [t.value for t in ComponentEnum]
+            # Perform a shallow copy
+            component_types = COMPONENT_LIST[:]
 
         if (len(query_fields) == 0):
             query_fields = (SearchFields.ALL, )
@@ -64,7 +67,7 @@ async def search_artifacts(registry_handler_config: "RegistryHandlerBaseConfig",
     "--types",
     "component_types",
     multiple=True,
-    type=click.Choice([e.value for e in ComponentEnum], case_sensitive=False),
+    type=click.Choice(COMPONENT_LIST, case_sensitive=False),
     required=False,
     help=("Filter the search by NAT component type."),
 )
@@ -95,7 +98,7 @@ async def search_artifacts(registry_handler_config: "RegistryHandlerBaseConfig",
     "-f",
     "--fields",
     multiple=True,
-    type=click.Choice([e.value for e in SearchFields], case_sensitive=False),
+    type=click.Choice(SEARCH_FIELDS_LIST, case_sensitive=False),
     required=False,
     help=("Fields used when applying query."),
 )

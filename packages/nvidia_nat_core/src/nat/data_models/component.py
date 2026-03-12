@@ -60,3 +60,6 @@ class ComponentGroup(StrEnum):
     TRAINERS = "trainers"
     TRAINER_ADAPTERS = "trainer_adapters"
     TRAJECTORY_BUILDERS = "trajectory_builders"
+
+
+COMPONENT_LIST = [e.value for e in ComponentEnum]
