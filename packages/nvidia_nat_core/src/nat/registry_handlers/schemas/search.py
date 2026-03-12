@@ -13,15 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 from enum import StrEnum
 
 from pydantic import BaseModel
 
 from nat.data_models.component import ComponentEnum
 from nat.registry_handlers.schemas.status import StatusMessage
-
-logger = logging.getLogger(__name__)
 
 
 class SearchFields(StrEnum):
