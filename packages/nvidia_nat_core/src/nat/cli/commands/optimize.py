@@ -13,16 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
-import logging
+import typing
 from pathlib import Path
 
 import click
 
-from nat.data_models.optimizer import OptimizerRunConfig
-from nat.parameter_optimization.optimizer_runtime import optimize_config
-
-logger = logging.getLogger(__name__)
+if typing.TYPE_CHECKING:
+    from nat.data_models.optimizer import OptimizerRunConfig
 
 
 @click.group(name=__name__, invoke_without_command=True, help="Optimize a workflow with the specified dataset.")
@@ -64,7 +61,8 @@ def optimizer_command(ctx, **kwargs) -> None:
     pass
 
 
-async def run_optimizer(config: OptimizerRunConfig):
+async def run_optimizer(config: "OptimizerRunConfig"):
+    from nat.parameter_optimization.optimizer_runtime import optimize_config
     await optimize_config(config)
 
 
@@ -79,6 +77,11 @@ def run_optimizer_callback(
     endpoint_timeout: int,
 ):
     """Run the optimizer with the provided config file and dataset."""
+
+    import asyncio
+
+    from nat.data_models.optimizer import OptimizerRunConfig
+
     config = OptimizerRunConfig(
         config_file=config_file,
         dataset=dataset,
