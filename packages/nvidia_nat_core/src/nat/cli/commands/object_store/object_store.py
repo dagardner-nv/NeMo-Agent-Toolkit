@@ -13,21 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import importlib
-import logging
-import mimetypes
-import time
+import typing
 from pathlib import Path
 
 import click
 
-from nat.builder.workflow_builder import WorkflowBuilder
-from nat.data_models.object_store import ObjectStoreBaseConfig
-from nat.object_store.interfaces import ObjectStore
-from nat.object_store.models import ObjectStoreItem
-
-logger = logging.getLogger(__name__)
+if typing.TYPE_CHECKING:
+    from nat.data_models.object_store import ObjectStoreBaseConfig
+    from nat.object_store.interfaces import ObjectStore
 
 STORE_CONFIGS = {
     "s3": {
@@ -42,7 +36,7 @@ STORE_CONFIGS = {
 }
 
 
-def get_object_store_config(**kwargs) -> ObjectStoreBaseConfig:
+def get_object_store_config(**kwargs) -> "ObjectStoreBaseConfig":
     """Process common object store arguments and return the config class"""
     store_type = kwargs.pop("store_type")
     config = STORE_CONFIGS[store_type]
@@ -51,7 +45,7 @@ def get_object_store_config(**kwargs) -> ObjectStoreBaseConfig:
     return config_class(**kwargs)
 
 
-async def upload_file(object_store: ObjectStore, file_path: Path, key: str):
+async def upload_file(object_store: "ObjectStore", file_path: Path, key: str):
     """
     Upload a single file to object store.
 
@@ -60,6 +54,12 @@ async def upload_file(object_store: ObjectStore, file_path: Path, key: str):
         file_path: The path to the file to upload.
         key: The key to upload the file to.
     """
+    import asyncio
+    import mimetypes
+    import time
+
+    from nat.object_store.models import ObjectStoreItem
+
     try:
         data = await asyncio.to_thread(file_path.read_bytes)
 
@@ -90,9 +90,12 @@ def object_store_command_decorator(async_func):
 
     @click.pass_context
     def wrapper(ctx: click.Context, **kwargs):
+        import asyncio
+
         config = ctx.obj["store_config"]
 
         async def work():
+            from nat.builder.workflow_builder import WorkflowBuilder
             async with WorkflowBuilder() as builder:
                 await builder.add_object_store(name="store", config=config)
                 store = await builder.get_object_store_client("store")
@@ -115,7 +118,7 @@ def object_store_command_decorator(async_func):
                 required=True)
 @click.help_option("--help", "-h")
 @object_store_command_decorator
-async def upload_command(store: ObjectStore, local_dir: Path, **_kwargs):
+async def upload_command(store: "ObjectStore", local_dir: Path, **_kwargs):
     """
     Upload a directory to an object store.
 
@@ -146,7 +149,7 @@ async def upload_command(store: ObjectStore, local_dir: Path, **_kwargs):
 @click.argument("keys", type=str, required=True, nargs=-1)
 @click.help_option("--help", "-h")
 @object_store_command_decorator
-async def delete_command(store: ObjectStore, keys: list[str], **_kwargs):
+async def delete_command(store: "ObjectStore", keys: list[str], **_kwargs):
     """
     Delete files from an object store.
 
