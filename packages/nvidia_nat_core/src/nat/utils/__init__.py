@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import typing
-from pathlib import Path
 
 if typing.TYPE_CHECKING:
 
@@ -51,6 +50,8 @@ async def run_workflow(*,
     _T
         The result of the workflow converted to the specified type.
     """
+    from pathlib import Path
+
     from nat.builder.workflow_builder import WorkflowBuilder
     from nat.runtime.loader import load_config
     from nat.runtime.session import SessionManager
