@@ -13,26 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
-import logging
-from contextlib import AsyncExitStack
+import typing
 
 import click
 
 from nat.data_models.component import ComponentEnum
-from nat.data_models.registry_handler import RegistryHandlerBaseConfig
 from nat.registry_handlers.schemas.search import SearchFields
 
-logger = logging.getLogger(__name__)
+if typing.TYPE_CHECKING:
+    from nat.data_models.registry_handler import RegistryHandlerBaseConfig
 
 
-async def search_artifacts(registry_handler_config: RegistryHandlerBaseConfig,
+async def search_artifacts(registry_handler_config: "RegistryHandlerBaseConfig",
                            component_types: list[ComponentEnum],
                            visualize: bool,
                            query: str,
                            num_results: int,
                            query_fields: list[SearchFields],
                            save_path: str | None) -> None:
+    from contextlib import AsyncExitStack
 
     from nat.cli.type_registry import GlobalTypeRegistry
     from nat.registry_handlers.schemas.search import SearchQuery
@@ -105,11 +104,14 @@ def list_components(fields: list[SearchFields],
                     num_results: int,
                     component_types: list[ComponentEnum],
                     output_path: str | None = None) -> None:
+    import asyncio
+    import logging
 
     from nat.runtime.loader import PluginTypes
     from nat.runtime.loader import discover_and_register_plugins
     from nat.settings.global_settings import GlobalSettings
 
+    logger = logging.getLogger(__name__)
     discover_and_register_plugins(PluginTypes.ALL)
 
     config_dict = {"channels": {"list_components": {"_type": "local"}}}

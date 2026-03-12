@@ -13,13 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-
 import click
 
 from nat.cli.commands.configure.channel.channel import channel
-
-logger = logging.getLogger(__name__)
 
 
 @click.group(name=__name__, invoke_without_command=False, help="Configure NAT developer preferences.")
