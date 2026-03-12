@@ -19,19 +19,21 @@ from pathlib import Path
 import click
 
 from nat.data_models.component import COMPONENT_LIST
-from nat.data_models.component import ComponentEnum
 from nat.registry_handlers.schemas.search import SEARCH_FIELDS_LIST
-from nat.registry_handlers.schemas.search import SearchFields
+
+from .validate_yaml import _validate_yaml
 
 if typing.TYPE_CHECKING:
+    from nat.data_models.component import ComponentEnum
     from nat.data_models.registry_handler import RegistryHandlerBaseConfig
+    from nat.registry_handlers.schemas.search import SearchFields
 
 
 async def search_artifacts(registry_handler_config: "RegistryHandlerBaseConfig",
                            query: str,
-                           search_fields: list[SearchFields],
+                           search_fields: list["SearchFields"],
                            visualize: bool,
-                           component_types: list[ComponentEnum],
+                           component_types: list["ComponentEnum"],
                            save_path: str | None = None,
                            n_results: int = 10) -> None:
     from contextlib import AsyncExitStack
@@ -60,11 +62,6 @@ async def search_artifacts(registry_handler_config: "RegistryHandlerBaseConfig",
                 registry_handler.visualize_search_results(search_response=search_response)
             if (save_path is not None):
                 registry_handler.save_search_results(search_response=search_response, save_path=save_path)
-
-
-def _validate_yaml(ctx: click.Context, param: click.Parameter, value: str) -> str:
-    from nat.utils.data_models.schema_validator import validate_yaml
-    return validate_yaml(ctx=ctx, param=param, value=value)
 
 
 @click.group(name=__name__, invoke_without_command=True, help="Search for NAT artifacts from remote registry.")
@@ -125,7 +122,7 @@ def search(config_file: str,
            channel: str,
            fields: list[str],
            query: str,
-           component_types: list[ComponentEnum],
+           component_types: list["ComponentEnum"],
            n_results: int,
            output_path: str) -> None:
     """

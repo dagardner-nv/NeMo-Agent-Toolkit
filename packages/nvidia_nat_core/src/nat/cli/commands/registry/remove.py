@@ -15,18 +15,21 @@
 
 import asyncio
 import logging
+import typing
 from contextlib import AsyncExitStack
 from pathlib import Path
 
 import click
 
-from nat.data_models.registry_handler import RegistryHandlerBaseConfig
-from nat.utils.data_models.schema_validator import validate_yaml
+from .validate_yaml import _validate_yaml
+
+if typing.TYPE_CHECKING:
+    from nat.data_models.registry_handler import RegistryHandlerBaseConfig
 
 logger = logging.getLogger(__name__)
 
 
-async def remove_artifact(registry_handler_config: RegistryHandlerBaseConfig, packages: list[dict[str, str]]) -> None:
+async def remove_artifact(registry_handler_config: "RegistryHandlerBaseConfig", packages: list[dict[str, str]]) -> None:
 
     from nat.cli.type_registry import GlobalTypeRegistry
     from nat.registry_handlers.schemas.package import PackageNameVersionList
@@ -53,7 +56,7 @@ async def remove_artifact(registry_handler_config: RegistryHandlerBaseConfig, pa
 @click.option(
     "--config_file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path),
-    callback=validate_yaml,
+    callback=_validate_yaml,
     required=False,
     help=("A YAML file to override the channel settings."),
 )

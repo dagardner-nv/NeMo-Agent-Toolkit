@@ -15,18 +15,21 @@
 
 import asyncio
 import logging
+import typing
 from contextlib import AsyncExitStack
 from pathlib import Path
 
 import click
 
-from nat.data_models.registry_handler import RegistryHandlerBaseConfig
-from nat.utils.data_models.schema_validator import validate_yaml
+from .validate_yaml import _validate_yaml
+
+if typing.TYPE_CHECKING:
+    from nat.data_models.registry_handler import RegistryHandlerBaseConfig
 
 logger = logging.getLogger(__name__)
 
 
-async def pull_artifact(registry_handler_config: RegistryHandlerBaseConfig, packages: list[str]) -> None:
+async def pull_artifact(registry_handler_config: "RegistryHandlerBaseConfig", packages: list[str]) -> None:
 
     from nat.cli.type_registry import GlobalTypeRegistry
     from nat.registry_handlers.schemas.package import PackageNameVersion
@@ -79,7 +82,7 @@ async def pull_artifact(registry_handler_config: RegistryHandlerBaseConfig, pack
 @click.option(
     "--config_file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path),
-    callback=validate_yaml,
+    callback=_validate_yaml,
     required=False,
     help=("A YAML file to override the channel settings."),
 )
@@ -98,7 +101,7 @@ def pull(channel: str, config_file: str, packages: str) -> None:
 
     from nat.settings.global_settings import GlobalSettings
 
-    packages = packages.split()
+    package_list = packages.split()
 
     settings = GlobalSettings().get()
 
@@ -115,4 +118,4 @@ def pull(channel: str, config_file: str, packages: str) -> None:
         logger.exception("Error loading user settings: %s", e)
         return
 
-    asyncio.run(pull_artifact(pull_channel_config, packages))
+    asyncio.run(pull_artifact(pull_channel_config, package_list))
