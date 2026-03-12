@@ -17,20 +17,15 @@ import asyncio
 import functools
 import logging
 import typing
-from collections.abc import Callable
-from pathlib import Path
 
 import click
-from pydantic_core import SchemaValidator
-
-from nat.cli.cli_utils.config_override import load_and_override_config
-from nat.cli.type_registry import GlobalTypeRegistry
-from nat.cli.type_registry import RegisteredFrontEndInfo
-from nat.data_models.config import Config
-from nat.utils.data_models.schema_validator import validate_schema
-from nat.utils.type_utils import DecomposedType
 
 logger = logging.getLogger(__name__)
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from nat.cli.type_registry import RegisteredFrontEndInfo
 
 
 class StartCommandGroup(click.Group):
@@ -42,7 +37,7 @@ class StartCommandGroup(click.Group):
         no_args_is_help: bool | None = None,
         subcommand_metavar: str | None = None,
         chain: bool = False,
-        result_callback: Callable[..., typing.Any] | None = None,
+        result_callback: "Callable[..., typing.Any] | None" = None,
         **attrs: typing.Any,
     ):
         super().__init__(name=name,
@@ -54,9 +49,12 @@ class StartCommandGroup(click.Group):
                          **attrs)
 
         self._commands: dict[str, click.Command] | None = None
-        self._registered_front_ends: dict[str, RegisteredFrontEndInfo] = {}
+        self._registered_front_ends: dict[str, "RegisteredFrontEndInfo"] = {}
 
-    def _build_params(self, front_end: RegisteredFrontEndInfo) -> list[click.Parameter]:
+    def _build_params(self, front_end: "RegisteredFrontEndInfo") -> list[click.Parameter]:
+        from pathlib import Path
+
+        from nat.utils.type_utils import DecomposedType
 
         params: list[click.Parameter] = []
 
@@ -144,6 +142,7 @@ class StartCommandGroup(click.Group):
         if (self._commands is not None):
             return self._commands
 
+        from nat.cli.type_registry import GlobalTypeRegistry
         from nat.runtime.loader import PluginTypes
         from nat.runtime.loader import discover_and_register_plugins
 
@@ -176,12 +175,18 @@ class StartCommandGroup(click.Group):
     def invoke_subcommand(self,
                           ctx: click.Context,
                           cmd_name: str,
-                          config_file: Path,
+                          config_file: "Path",
                           override: tuple[tuple[str, str], ...],
                           **kwargs) -> int | None:
 
+        from pydantic_core import SchemaValidator
+
+        from nat.cli.cli_utils.config_override import load_and_override_config
+        from nat.cli.type_registry import GlobalTypeRegistry
+        from nat.data_models.config import Config
         from nat.runtime.loader import PluginTypes
         from nat.runtime.loader import discover_and_register_plugins
+        from nat.utils.data_models.schema_validator import validate_schema
 
         if (config_file is None):
             raise click.ClickException("No config file provided.")
@@ -194,7 +199,7 @@ class StartCommandGroup(click.Group):
         config_dict = load_and_override_config(config_file, override)
 
         # Get the front end for the command
-        front_end: RegisteredFrontEndInfo = self._registered_front_ends[cmd_name]
+        front_end: "RegisteredFrontEndInfo" = self._registered_front_ends[cmd_name]
 
         config = validate_schema(config_dict, Config)
 
