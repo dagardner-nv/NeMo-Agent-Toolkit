@@ -13,16 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-
 import click
 
 from nat.cli.commands.registry.publish import publish
 from nat.cli.commands.registry.pull import pull
 from nat.cli.commands.registry.remove import remove
 from nat.cli.commands.registry.search import search
-
-logger = logging.getLogger(__name__)
 
 
 @click.group(name=__name__, invoke_without_command=False, help="Utility to configure NAT remote registry channels.")
