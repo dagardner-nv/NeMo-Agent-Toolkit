@@ -13,9 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import logging
-from contextlib import AsyncExitStack
 
 import click
 
@@ -23,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 async def uninstall_packages(packages: list[dict[str, str]]) -> None:
+    from contextlib import AsyncExitStack
 
     from nat.cli.type_registry import GlobalTypeRegistry
     from nat.registry_handlers.schemas.package import PackageNameVersionList
@@ -59,6 +58,8 @@ def uninstall_command(packages: str) -> None:
     """
     Uninstall plugin packages from the local environment.
     """
+
+    import asyncio
 
     packages = packages.split()
     packages_versions = []

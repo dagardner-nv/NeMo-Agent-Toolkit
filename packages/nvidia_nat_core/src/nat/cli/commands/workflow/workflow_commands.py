@@ -14,16 +14,10 @@
 # limitations under the License.
 
 import logging
-import os.path
-import shutil
 import subprocess
 from pathlib import Path
-from urllib.parse import urlparse
-from urllib.request import url2pathname
 
 import click
-from jinja2 import Environment
-from jinja2 import FileSystemLoader
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +126,8 @@ def find_package_root(package_name: str) -> Path | None:
     import json
     from importlib.metadata import Distribution
     from importlib.metadata import PackageNotFoundError
+    from urllib.parse import urlparse
+    from urllib.request import url2pathname
 
     try:
         dist_info = Distribution.from_name(package_name)
@@ -216,6 +212,11 @@ def create_command(workflow_name: str, install: bool, workflow_dir: str, descrip
         workflow_dir (str): The directory to create the workflow package.
         description (str): Description to pre-popluate the workflow docstring.
     """
+    import os.path
+
+    from jinja2 import Environment
+    from jinja2 import FileSystemLoader
+
     # Fail fast with Click's standard exit code (2) for bad params.
     if not workflow_name or not workflow_name.strip():
         raise click.BadParameter("Workflow name cannot be empty.")  # noqa: TRY003
@@ -371,6 +372,8 @@ def delete_command(workflow_name: str, yes_flag: bool):
     Args:
         workflow_name (str): The name of the workflow to delete.
     """
+    import shutil
+
     try:
         if not yes_flag and not click.confirm(f"Are you sure you want to delete the workflow '{workflow_name}'?"):
             click.echo("Workflow deletion cancelled.")
