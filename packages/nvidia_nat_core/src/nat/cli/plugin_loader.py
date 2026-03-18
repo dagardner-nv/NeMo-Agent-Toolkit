@@ -54,7 +54,7 @@ def discover_and_load_cli_plugins(cli_group: click.Group) -> None:
 
             # Add the command to the CLI group
             cli_group.add_command(command, name=ep.name)
-            logger.debug("Loaded CLI plugin: %s from %s", ep.name, ep.value)
+            logger.warning("Loaded CLI plugin: %s from %s", ep.name, ep.value)
 
         except ImportError as e:
             # Plugin package not installed or missing dependencies - this is expected

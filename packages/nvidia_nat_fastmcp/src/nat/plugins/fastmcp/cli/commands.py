@@ -27,7 +27,6 @@ from pathlib import Path
 import click
 
 from nat.cli.commands.start import start_command  # type: ignore[reportMissingImports]
-from nat.plugins.fastmcp.cli.utils import iter_file_changes
 
 
 @click.group(name=__name__, invoke_without_command=False, help="FastMCP-related commands.")
@@ -148,6 +147,9 @@ def fastmcp_server_dev(
     reload_exclude_glob: tuple[str, ...],
 ) -> None:
     """Developer-focused FastMCP server runner with reload support."""
+
+    from nat.plugins.fastmcp.cli.utils import iter_file_changes
+
     base_cmd = _resolve_nat_cli_command() + ["fastmcp", "serve", "--config_file", str(config_file)]
     for key, value in override:
         base_cmd.extend(["--override", key, value])

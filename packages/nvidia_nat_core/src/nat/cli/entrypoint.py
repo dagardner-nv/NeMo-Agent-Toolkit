@@ -119,27 +119,40 @@ def _ensure_plugins_loaded():
     nest_asyncio2.apply()
 
 
+def _print_modules():
+    mods = sorted(sys.modules.keys())
+    nat_mods = [mod for mod in mods if mod.startswith("nat.")]
+    print(f"**********\nLoaded Modules ttl: ({len(mods)}) nat: {len(nat_mods)}:\n" + ", ".join(nat_mods[:10]) +
+          "\n**********\n\n")
+
+
 def _load_sub_commands():
     # Aliases - need to get start_command from the loaded commands
     from datetime import datetime
     n0 = datetime.now()
     print("_load_sub_commands - 0")
+    _print_modules()
+
     # Discover and load ALL CLI commands (core + plugins) via entry points
     from .plugin_loader import discover_and_load_cli_plugins
     discover_and_load_cli_plugins(cli)
 
     n1 = datetime.now()
     print(f"_load_sub_commands - 1 - {n1 - n0} seconds")
+    _print_modules()
 
     from .commands.start import start_command
     cli.add_command(start_command, name="start")
 
     n2 = datetime.now()
     print(f"_load_sub_commands - 2 - {n2 - n1} seconds")
+    _print_modules()
+
     cli.add_command(start_command.get_command(None, "console"), name="run")  # type: ignore
     cli.add_command(start_command.get_command(None, "fastapi"), name="serve")  # type: ignore
     n3 = datetime.now()
     print(f"_load_sub_commands - 3 - {n3 - n2} seconds")
+    _print_modules()
 
 
 _load_sub_commands()
