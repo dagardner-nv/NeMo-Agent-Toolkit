@@ -228,9 +228,13 @@ class ConsoleAuthenticationFlowHandler(FlowHandlerBase):
         @app.get("/auth/redirect")
         async def handle_redirect(request: Request):
             state = request.query_params.get("state")
+            logger.debug("\n*********************\nRedirect received: state_prefix=%s state_known=%s\n*********************\n",
+                         state[:8] if state else None, state in self._flows if state else False)
             if not state or state not in self._flows:
                 return "Invalid state; restart authentication."
             flow_state = self._flows[state]
+            logger.debug("\n*********************\nFetching token: token_url=%s use_pkce=%s\n*********************\n",
+                         flow_state.token_url, flow_state.use_pkce)
             try:
                 token = await self._oauth_client.fetch_token(  # type: ignore[arg-type]
                     url=flow_state.token_url,
@@ -238,6 +242,8 @@ class ConsoleAuthenticationFlowHandler(FlowHandlerBase):
                     code_verifier=flow_state.verifier if flow_state.use_pkce else None,
                     state=state,
                 )
+                logger.debug("\n*********************\nToken fetch success: token_type=%s expires_at=%s\n*********************\n",
+                             token.get("token_type"), token.get("expires_at"))
                 flow_state.future.set_result(token)
             except OAuthError as e:
                 flow_state.future.set_exception(
