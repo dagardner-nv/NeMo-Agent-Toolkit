@@ -328,6 +328,10 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
         self._token_storage = None
         self._token_storage_object_store_name = None
 
+        logger.info(
+            "\n*********************\nInitialized MCPOAuth2Provider with redirect_uri: %s\n*********************\n",
+            self.config.redirect_uri)
+
         if self.config.token_storage_object_store:
             # Store object store name, will be resolved later when builder context is available
             self._token_storage_object_store_name = self.config.token_storage_object_store
@@ -370,7 +374,9 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
 
         response = kwargs.get('response')
         if response and response.status_code == 401:
-            logger.info("\n*********************\n401 response received — starting discovery+registration\n*********************\n")
+            logger.info(
+                "\n*********************\n401 response received — starting discovery+registration\n*********************\n"
+            )
             await self._discover_and_register(response=response)
 
         return await self._nat_oauth2_authenticate(user_id=user_id)
@@ -387,8 +393,10 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
         """
         # Discover OAuth2 endpoints
         self._cached_endpoints, endpoints_changed = await self._discoverer.discover(response=response)
-        logger.info("\n*********************\nDiscovery complete: endpoints_changed=%s endpoints=%s\n*********************\n",
-                     endpoints_changed, self._cached_endpoints)
+        logger.info(
+            "\n*********************\nDiscovery complete: endpoints_changed=%s endpoints=%s\n*********************\n",
+            endpoints_changed,
+            self._cached_endpoints)
         if endpoints_changed:
             logger.info("OAuth2 endpoints: %s", self._cached_endpoints)
             self._cached_credentials = None  # invalidate credentials tied to old AS
@@ -410,7 +418,7 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
                 logger.info("Registered OAuth2 client: %s", self._cached_credentials.client_id)
 
         logger.info("\n*********************\nRegistration complete: client_id=%s\n*********************\n",
-                     self._cached_credentials.client_id if self._cached_credentials else None)
+                    self._cached_credentials.client_id if self._cached_credentials else None)
 
     async def _nat_oauth2_authenticate(self, user_id: str | None = None) -> AuthResult:
         """Perform the OAuth2 flow using MCP-specific authentication flow handler."""
@@ -423,8 +431,11 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
         endpoints = self._cached_endpoints
         credentials = self._cached_credentials
 
-        logger.info("\n*********************\n_nat_oauth2_authenticate: user_id=%s token_storage=%s auth_code_provider=%s\n*********************\n",
-                     user_id, type(self._token_storage).__name__, type(self._auth_code_provider).__name__ if self._auth_code_provider else None)
+        logger.info(
+            "\n*********************\n_nat_oauth2_authenticate: user_id=%s token_storage=%s auth_code_provider=%s\n*********************\n",
+            user_id,
+            type(self._token_storage).__name__,
+            type(self._auth_code_provider).__name__ if self._auth_code_provider else None)
 
         # Resolve object store reference if needed
         if self._token_storage_object_store_name and not self._token_storage:
@@ -471,7 +482,8 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
                 callback = self._auth_callback or self._flow_handler.authenticate
                 self._auth_code_provider._set_custom_auth_callback(callback)  # type: ignore[arg-type]
 
-        logger.info("\n*********************\nDelegating to OAuth2AuthCodeFlowProvider.authenticate: user_id=%s\n*********************\n",
-                     user_id)
+        logger.info(
+            "\n*********************\nDelegating to OAuth2AuthCodeFlowProvider.authenticate: user_id=%s\n*********************\n",
+            user_id)
         # Auth code provider is responsible for per-user cache + refresh
         return await self._auth_code_provider.authenticate(user_id=user_id)
