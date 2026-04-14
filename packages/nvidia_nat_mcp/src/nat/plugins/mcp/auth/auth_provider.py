@@ -362,12 +362,15 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
             # MCP tool calls cannot be made without an authorized user
             raise RuntimeError("User is not authorized to call the tool")
 
-        logger.debug("\n*********************\nMCPOAuth2Provider.authenticate: user_id=%s has_response=%s\n*********************\n",
-                     user_id, kwargs.get('response') is not None)
+        logger.info(
+            "\n*********************\nMCPOAuth2Provider.authenticate: user_id=%s has_response=%s\n*********************\n",
+            user_id,
+            kwargs.get('response') is not None,
+        )
 
         response = kwargs.get('response')
         if response and response.status_code == 401:
-            logger.debug("\n*********************\n401 response received — starting discovery+registration\n*********************\n")
+            logger.info("\n*********************\n401 response received — starting discovery+registration\n*********************\n")
             await self._discover_and_register(response=response)
 
         return await self._nat_oauth2_authenticate(user_id=user_id)
@@ -384,7 +387,7 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
         """
         # Discover OAuth2 endpoints
         self._cached_endpoints, endpoints_changed = await self._discoverer.discover(response=response)
-        logger.debug("\n*********************\nDiscovery complete: endpoints_changed=%s endpoints=%s\n*********************\n",
+        logger.info("\n*********************\nDiscovery complete: endpoints_changed=%s endpoints=%s\n*********************\n",
                      endpoints_changed, self._cached_endpoints)
         if endpoints_changed:
             logger.info("OAuth2 endpoints: %s", self._cached_endpoints)
@@ -406,7 +409,7 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
                 self._cached_credentials = await self._registrar.register(self._cached_endpoints, effective_scopes)
                 logger.info("Registered OAuth2 client: %s", self._cached_credentials.client_id)
 
-        logger.debug("\n*********************\nRegistration complete: client_id=%s\n*********************\n",
+        logger.info("\n*********************\nRegistration complete: client_id=%s\n*********************\n",
                      self._cached_credentials.client_id if self._cached_credentials else None)
 
     async def _nat_oauth2_authenticate(self, user_id: str | None = None) -> AuthResult:
@@ -420,7 +423,7 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
         endpoints = self._cached_endpoints
         credentials = self._cached_credentials
 
-        logger.debug("\n*********************\n_nat_oauth2_authenticate: user_id=%s token_storage=%s auth_code_provider=%s\n*********************\n",
+        logger.info("\n*********************\n_nat_oauth2_authenticate: user_id=%s token_storage=%s auth_code_provider=%s\n*********************\n",
                      user_id, type(self._token_storage).__name__, type(self._auth_code_provider).__name__ if self._auth_code_provider else None)
 
         # Resolve object store reference if needed
@@ -468,7 +471,7 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
                 callback = self._auth_callback or self._flow_handler.authenticate
                 self._auth_code_provider._set_custom_auth_callback(callback)  # type: ignore[arg-type]
 
-        logger.debug("\n*********************\nDelegating to OAuth2AuthCodeFlowProvider.authenticate: user_id=%s\n*********************\n",
+        logger.info("\n*********************\nDelegating to OAuth2AuthCodeFlowProvider.authenticate: user_id=%s\n*********************\n",
                      user_id)
         # Auth code provider is responsible for per-user cache + refresh
         return await self._auth_code_provider.authenticate(user_id=user_id)

@@ -127,7 +127,7 @@ class ObjectStoreTokenStorage(TokenStorageBase):
             auth_result: The authentication result to store
         """
         key = self._get_key(user_id)
-        logger.debug("\n*********************\nObjectStoreTokenStorage.store: user_id=%s key=%s\n*********************\n",
+        logger.info("\n*********************\nObjectStoreTokenStorage.store: user_id=%s key=%s\n*********************\n",
                      user_id, key)
 
         # Serialize the AuthResult to JSON with secrets exposed
@@ -168,18 +168,18 @@ class ObjectStoreTokenStorage(TokenStorageBase):
             The authentication result if found, None otherwise
         """
         key = self._get_key(user_id)
-        logger.debug("\n*********************\nObjectStoreTokenStorage.retrieve: user_id=%s key=%s\n*********************\n",
+        logger.info("\n*********************\nObjectStoreTokenStorage.retrieve: user_id=%s key=%s\n*********************\n",
                      user_id, key)
 
         try:
             item = await self._object_store.get_object(key)
             # Deserialize the AuthResult from JSON
             auth_result = AuthResult.model_validate_json(item.data)
-            logger.debug("\n*********************\nToken retrieved: user_id=%s expired=%s\n*********************\n",
+            logger.info("\n*********************\nToken retrieved: user_id=%s expired=%s\n*********************\n",
                          user_id, auth_result.is_expired() if hasattr(auth_result, 'is_expired') else 'unknown')
             return auth_result
         except NoSuchKeyError:
-            logger.debug("\n*********************\nToken not found in storage: user_id=%s\n*********************\n",
+            logger.info("\n*********************\nToken not found in storage: user_id=%s\n*********************\n",
                          user_id)
             return None
         except Exception as e:

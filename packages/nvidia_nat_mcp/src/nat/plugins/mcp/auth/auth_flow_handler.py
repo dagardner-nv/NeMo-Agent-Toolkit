@@ -75,7 +75,7 @@ class MCPAuthenticationFlowHandler(ConsoleAuthenticationFlowHandler):
             ValueError: If config is invalid for MCP use case
             NotImplementedError: If method is not OAuth2 Authorization Code
         """
-        logger.debug("\n*********************\nMCPAuthenticationFlowHandler.authenticate: method=%s\n*********************\n",
+        logger.info("\n*********************\nMCPAuthenticationFlowHandler.authenticate: method=%s\n*********************\n",
                      method)
         logger.info("Starting MCP authentication flow")
 
@@ -168,7 +168,7 @@ class MCPAuthenticationFlowHandler(ConsoleAuthenticationFlowHandler):
             await self._start_redirect_server()
             self._flows[state] = flow_state
 
-        logger.debug("\n*********************\nOAuth state registered: state_prefix=%s flows_count=%d redirect=%s:%d\n*********************\n",
+        logger.info("\n*********************\nOAuth state registered: state_prefix=%s flows_count=%d redirect=%s:%d\n*********************\n",
                      state[:8], len(self._flows), self._redirect_host, self._redirect_port)
         logger.info("MCP authentication: Your browser has been opened for authentication.")
         logger.info("This will authenticate you with the MCP server for tool discovery.")
@@ -179,7 +179,7 @@ class MCPAuthenticationFlowHandler(ConsoleAuthenticationFlowHandler):
 
         try:
             token = await asyncio.wait_for(flow_state.future, timeout=timeout)
-            logger.debug("\n*********************\nOAuth token received: token_type=%s expires_at=%s\n*********************\n",
+            logger.info("\n*********************\nOAuth token received: token_type=%s expires_at=%s\n*********************\n",
                          token.get("token_type"), token.get("expires_at"))
             logger.info("MCP authentication successful, token obtained")
         except TimeoutError as exc:
