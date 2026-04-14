@@ -105,24 +105,71 @@ class OAuth2AuthCodeFlowProvider(AuthProviderBase[OAuth2AuthCodeFlowProviderConf
 
             if auth_result:
                 if not auth_result.is_expired():
+                    logger.info(
+                        "\n*********************\nOAuth2AuthCodeFlowProvider.authenticate: valid cached token found for user_id=%s\n*********************\n",
+                        user_id)
                     return auth_result
 
+                logger.info(
+                    "\n*********************\nOAuth2AuthCodeFlowProvider.authenticate: cached token is expired for user_id=%s, attempting refresh\n*********************\n",
+                    user_id)
                 refreshed_auth_result = await self._attempt_token_refresh(user_id, auth_result)
                 if refreshed_auth_result:
+                    logger.info(
+                        "\n*********************\nOAuth2AuthCodeFlowProvider.authenticate: token refresh succeeded for user_id=%s\n*********************\n",
+                        user_id)
                     return refreshed_auth_result
+                logger.info(
+                    "\n*********************\nOAuth2AuthCodeFlowProvider.authenticate: token refresh failed for user_id=%s, falling through to interactive flow\n*********************\n",
+                    user_id)
+            else:
+                logger.info(
+                    "\n*********************\nOAuth2AuthCodeFlowProvider.authenticate: no cached token for user_id=%s, proceeding to interactive OAuth flow\n*********************\n",
+                    user_id)
+        else:
+            logger.info(
+                "\n*********************\nOAuth2AuthCodeFlowProvider.authenticate: no user_id, proceeding to interactive OAuth flow\n*********************\n"
+            )
 
         # Try getting callback from the context if that's not set, use the default callback
         try:
-            auth_callback = Context.get().user_auth_callback
-        except RuntimeError:
+            logger.info(
+                "\n*********************\nOAuth2AuthCodeFlowProvider.authenticate: attempting to get auth from context for user_id=%s\n*********************\n",
+                user_id)
+            ctx_callback = Context.get().user_auth_callback
+            logger.info(
+                "\n*********************\nOAuth2AuthCodeFlowProvider.authenticate: got auth callback from Context: %s\n*********************\n",
+                type(ctx_callback).__name__ if ctx_callback else None)
+            auth_callback = ctx_callback
+        except RuntimeError as e:
+            logger.info(
+                "\n*********************\nOAuth2AuthCodeFlowProvider.authenticate: Context.get() raised RuntimeError: %s, falling back to _auth_callback=%s\n*********************\n",
+                e,
+                type(self._auth_callback).__name__ if self._auth_callback else None)
             auth_callback = self._auth_callback
 
         if not auth_callback:
+            logger.error(
+                "\n*********************\nOAuth2AuthCodeFlowProvider.authenticate: no auth callback available for user_id=%s\n*********************\n",
+                user_id)
             raise RuntimeError("Authentication callback not set on Context.")
 
+        logger.info(
+            "\n*********************\nOAuth2AuthCodeFlowProvider.authenticate: invoking auth callback %s for user_id=%s\n*********************\n",
+            type(auth_callback).__name__,
+            user_id)
         try:
             authenticated_context = await auth_callback(self.config, AuthFlowType.OAUTH2_AUTHORIZATION_CODE)
+            logger.info(
+                "\n*********************\nOAuth2AuthCodeFlowProvider.authenticate: auth callback returned for user_id=%s\n*********************\n",
+                user_id)
         except Exception as e:
+            logger.error(
+                "\n*********************\nOAuth2AuthCodeFlowProvider.authenticate: auth callback raised %s for user_id=%s: %s\n*********************\n",
+                type(e).__name__,
+                user_id,
+                e,
+                exc_info=True)
             raise RuntimeError(f"Authentication callback failed: {e}") from e
 
         headers = authenticated_context.headers or {}

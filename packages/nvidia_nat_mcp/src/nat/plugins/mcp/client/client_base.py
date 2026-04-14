@@ -128,7 +128,9 @@ class AuthAdapter(httpx.Auth):
 
             return headers
         except Exception as e:
-            logger.warning("Failed to get auth token: %s", e)
+            logger.error(
+                "\n*********************\n_get_auth_headers: exception during authenticate user_id=%s: %s\n*********************\n",
+                self.user_id, e, exc_info=True)
             return {}
 
 
