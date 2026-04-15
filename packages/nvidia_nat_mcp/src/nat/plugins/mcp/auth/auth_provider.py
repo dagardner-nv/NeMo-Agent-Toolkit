@@ -333,9 +333,10 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
         self._token_storage_object_store_name = None
 
         logger.info(
-            "\n*********************\nInitialized MCPOAuth2Provider: redirect_uri=%s client_id=%s\n*********************\n",
+            "\n*********************\nInitialized MCPOAuth2Provider: redirect_uri=%s client_id=%s oauth_client_ttl=%s\n*********************\n",
             self.config.redirect_uri,
-            self.config.client_id)
+            self.config.client_id,
+            self.config.oauth_client_ttl)
 
         if self.config.token_storage_object_store:
             # Store object store name, will be resolved later when builder context is available
