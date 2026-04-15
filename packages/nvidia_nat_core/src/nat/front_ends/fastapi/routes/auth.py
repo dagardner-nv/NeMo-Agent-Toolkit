@@ -15,6 +15,7 @@
 """OAuth callback route registration."""
 
 import logging
+import pprint
 from typing import TYPE_CHECKING
 
 import httpx
@@ -36,22 +37,23 @@ async def add_authorization_route(worker: "FastApiFrontEndPluginWorker", app: Fa
 
     async def redirect_uri(request: Request):
         """Handle the redirect URI for OAuth2 authentication."""
-        logger.info("\n*********************\nOAuth redirect received: url=%s\n*********************\n", request.url)
+        logger.info(
+            "\n*********************\nOAuth redirect received: url=%s\noutstanding_flows=%s\n*********************\n",
+            request.url, pprint.pformat(worker._outstanding_flows))
         state = request.query_params.get("state")
 
         async with worker._outstanding_flows_lock:
             if not state or state not in worker._outstanding_flows:
                 logger.warning(
-                    "\n*********************\nOAuth redirect: invalid or missing state=%s\n*********************\n",
-                    state)
+                    "\n*********************\nOAuth redirect: invalid or missing state=%s\noutstanding_flows=%s\n*********************\n",
+                    state, pprint.pformat(worker._outstanding_flows))
                 return HTMLResponse("Invalid state. Please restart the authentication process.", status_code=400)
 
             flow_state = worker._outstanding_flows[state]
 
         logger.info(
-            "\n*********************\nOAuth redirect: valid state=%s, proceeding to token exchange"
-            "\n*********************\n",
-            state)
+            "\n*********************\nOAuth redirect: valid state=%s, proceeding to token exchange\noutstanding_flows=%s\n*********************\n",
+            state, pprint.pformat(worker._outstanding_flows))
 
         config = flow_state.config
         verifier = flow_state.verifier
@@ -59,21 +61,21 @@ async def add_authorization_route(worker: "FastApiFrontEndPluginWorker", app: Fa
 
         try:
             logger.info(
-                "\n*********************\nOAuth token fetch: state=%s token_url=%s\n*********************\n",
-                state, config.token_url)
+                "\n*********************\nOAuth token fetch: state=%s token_url=%s\noutstanding_flows=%s\n*********************\n",
+                state, config.token_url, pprint.pformat(worker._outstanding_flows))
             res = await client.fetch_token(url=config.token_url,
                                            authorization_response=str(request.url),
                                            code_verifier=verifier,
                                            state=state)
             logger.info(
-                "\n*********************\nOAuth token fetch success: state=%s token_type=%s\n*********************\n",
-                state, res.get("token_type"))
+                "\n*********************\nOAuth token fetch success: state=%s token_type=%s\noutstanding_flows=%s\n*********************\n",
+                state, res.get("token_type"), pprint.pformat(worker._outstanding_flows))
             if not flow_state.future.done():
                 flow_state.future.set_result(res)
         except OAuthError as e:
             logger.error(
-                "\n*********************\nOAuth error during token exchange: state=%s error=%s description=%s\n*********************\n",
-                state, e.error, e.description)
+                "\n*********************\nOAuth error during token exchange: state=%s error=%s description=%s\noutstanding_flows=%s\n*********************\n",
+                state, e.error, e.description, pprint.pformat(worker._outstanding_flows))
             if not flow_state.future.done():
                 flow_state.future.set_exception(
                     RuntimeError(f"Authorization server rejected request: {e.error} ({e.description})"))
@@ -82,8 +84,8 @@ async def add_authorization_route(worker: "FastApiFrontEndPluginWorker", app: Fa
                                 headers={"Cache-Control": "no-cache"})
         except httpx.HTTPError as e:
             logger.error(
-                "\n*********************\nOAuth network error during token fetch: state=%s error=%s\n*********************\n",
-                state, e)
+                "\n*********************\nOAuth network error during token fetch: state=%s error=%s\noutstanding_flows=%s\n*********************\n",
+                state, e, pprint.pformat(worker._outstanding_flows))
             if not flow_state.future.done():
                 flow_state.future.set_exception(RuntimeError(f"Network error during token fetch: {e}"))
             return HTMLResponse("Network error during token exchange. Please try again.",
@@ -91,8 +93,8 @@ async def add_authorization_route(worker: "FastApiFrontEndPluginWorker", app: Fa
                                 headers={"Cache-Control": "no-cache"})
         except Exception as e:
             logger.error(
-                "\n*********************\nOAuth unexpected error during authentication: state=%s error=%s\n*********************\n",
-                state, e)
+                "\n*********************\nOAuth unexpected error during authentication: state=%s error=%s\noutstanding_flows=%s\n*********************\n",
+                state, e, pprint.pformat(worker._outstanding_flows))
             if not flow_state.future.done():
                 flow_state.future.set_exception(RuntimeError(f"Authentication failed: {e}"))
             return HTMLResponse("Authentication failed. Please try again.",
@@ -101,8 +103,9 @@ async def add_authorization_route(worker: "FastApiFrontEndPluginWorker", app: Fa
         finally:
             await worker._remove_flow(state)
 
-        logger.info("\n*********************\nOAuth redirect complete: state=%s returning success page\n*********************\n",
-                    state)
+        logger.info(
+            "\n*********************\nOAuth redirect complete: state=%s returning success page\noutstanding_flows=%s\n*********************\n",
+            state, pprint.pformat(worker._outstanding_flows))
         return HTMLResponse(content=AUTH_REDIRECT_SUCCESS_HTML,
                             status_code=200,
                             headers={

@@ -16,6 +16,7 @@
 import asyncio
 import logging
 import os
+import pprint
 from abc import ABC
 from abc import abstractmethod
 from collections.abc import Awaitable
@@ -384,10 +385,17 @@ class FastApiFrontEndPluginWorker(FastApiFrontEndPluginWorkerBase):
     async def _add_flow(self, state: str, flow_state: FlowState):
         async with self._outstanding_flows_lock:
             self._outstanding_flows[state] = flow_state
+            logger.info(
+                "\n*********************\n_add_flow: added state=%s\noutstanding_flows=%s\n*********************\n",
+                state, pprint.pformat(self._outstanding_flows))
 
     async def _remove_flow(self, state: str):
         async with self._outstanding_flows_lock:
             self._outstanding_flows.pop(state, None)
+            logger.info(
+                "\n*********************\n_remove_flow: removed state=%s\noutstanding_flows=%s"
+                "\n*********************\n",
+                state, pprint.pformat(self._outstanding_flows))
 
 
 # Prevent Sphinx from documenting items not a part of the public API

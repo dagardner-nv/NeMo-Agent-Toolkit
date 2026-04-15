@@ -329,8 +329,9 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
         self._token_storage_object_store_name = None
 
         logger.info(
-            "\n*********************\nInitialized MCPOAuth2Provider with redirect_uri: %s\n*********************\n",
-            self.config.redirect_uri)
+            "\n*********************\nInitialized MCPOAuth2Provider: redirect_uri=%s client_id=%s\n*********************\n",
+            self.config.redirect_uri,
+            self.config.client_id)
 
         if self.config.token_storage_object_store:
             # Store object store name, will be resolved later when builder context is available
@@ -367,15 +368,18 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
             raise RuntimeError("User is not authorized to call the tool")
 
         logger.info(
-            "\n*********************\nMCPOAuth2Provider.authenticate: user_id=%s has_response=%s\n*********************\n",
+            "\n*********************\nMCPOAuth2Provider.authenticate: user_id=%s has_response=%s client_id=%s\n*********************\n",
             user_id,
             kwargs.get('response') is not None,
+            self._cached_credentials.client_id if self._cached_credentials else None,
         )
 
         response = kwargs.get('response')
         if response and response.status_code == 401:
             logger.info(
-                "\n*********************\n401 response received — starting discovery+registration\n*********************\n"
+                "\n*********************\n401 response received — starting discovery+registration client_id=%s"
+                "\n*********************\n",
+                self._cached_credentials.client_id if self._cached_credentials else None,
             )
             await self._discover_and_register(response=response)
 
@@ -432,8 +436,10 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
         credentials = self._cached_credentials
 
         logger.info(
-            "\n*********************\n_nat_oauth2_authenticate: user_id=%s token_storage=%s auth_code_provider=%s\n*********************\n",
+            "\n*********************\n_nat_oauth2_authenticate: user_id=%s client_id=%s token_storage=%s auth_code_provider=%s"
+            "\n*********************\n",
             user_id,
+            credentials.client_id,
             type(self._token_storage).__name__,
             type(self._auth_code_provider).__name__ if self._auth_code_provider else None)
 
@@ -483,7 +489,9 @@ class MCPOAuth2Provider(AuthProviderBase[MCPOAuth2ProviderConfig]):
                 self._auth_code_provider._set_custom_auth_callback(callback)  # type: ignore[arg-type]
 
         logger.info(
-            "\n*********************\nDelegating to OAuth2AuthCodeFlowProvider.authenticate: user_id=%s\n*********************\n",
-            user_id)
+            "\n*********************\nDelegating to OAuth2AuthCodeFlowProvider.authenticate: user_id=%s client_id=%s"
+            "\n*********************\n",
+            user_id,
+            credentials.client_id)
         # Auth code provider is responsible for per-user cache + refresh
         return await self._auth_code_provider.authenticate(user_id=user_id)
